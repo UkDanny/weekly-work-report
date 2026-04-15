@@ -411,7 +411,7 @@ const S={
   user:JSON.parse(localStorage.getItem('wdr_user')||'{"name":"","dept":"","position":""}'),
   tab:0, weekKey:curKey(), weeks:loadWeeks(),
   detail:'mid', loading:false, autoGen:false, prevSumGen:false, progressGen:false, showPdfModal:false, showExportModal:false,
-  showModal:false, showArchive:false, showSettings:false, toast:null, progressItems:[], _pdfLang:'ko', _pdfIncludeProgress:true, _exportFmt:null,
+  showModal:false, showArchive:false, showSettings:false, toast:null, progressItems:[], _pdfLang:'ko', _pdfIncludeProgress:true, _exportFmt:null, _fileLoading:false,
   theme:'light', accent:'#4f8ef7', brightness:1, customHex:'#4f8ef7',
 };
 loadThemePrefs();
@@ -546,27 +546,58 @@ async function genWeekly(auto){
 }
 
 // ── FILE HANDLING ──────────────────────────────────────────────────────────────
+// 단일 파일 읽기 ─────────────────────────────────────────────────────────────
 async function readFile(file){
-  const ext=file.name.split('.').pop().toLowerCase();
+  const ext=(file.name.split('.').pop()||'').toLowerCase();
+  if(file.size>20*1024*1024)throw new Error(`파일이 너무 큽니다 (최대 20MB): ${file.name}`);
+
   if(['jpg','jpeg','png','gif','webp'].includes(ext)){
-    return new Promise(res=>{
+    return new Promise((res,rej)=>{
       const r=new FileReader();
       r.onload=e=>res({type:'image',name:file.name,data:e.target.result.split(',')[1],mediaType:file.type||'image/jpeg',preview:e.target.result});
+      r.onerror=()=>rej(new Error('이미지 읽기 실패: '+file.name));
       r.readAsDataURL(file);
     });
   }
   let text='';
   if(['xlsx','xls'].includes(ext)){
-    const buf=await file.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});
-    text=wb.SheetNames.map(sn=>{const csv=XLSX.utils.sheet_to_csv(wb.Sheets[sn]);return csv.trim()?`[시트: ${sn}]\n${csv}`:'';}).filter(Boolean).join('\n\n');
-  }else{text=await file.text();}
+    if(typeof XLSX==='undefined')throw new Error('Excel 라이브러리가 로드되지 않았습니다. 새로고침 후 다시 시도해주세요.');
+    try{
+      const buf=await file.arrayBuffer();
+      const wb=XLSX.read(new Uint8Array(buf),{type:'array',cellText:true,cellDates:true});
+      const parts=wb.SheetNames.map(sn=>{
+        const ws=wb.Sheets[sn];
+        const csv=XLSX.utils.sheet_to_csv(ws,{blankrows:false});
+        return csv.trim()?`[시트: ${sn}]\n${csv}`:'';
+      }).filter(Boolean);
+      text=parts.length?parts.join('\n\n'):'(내용 없음)';
+    }catch(xe){throw new Error('Excel 읽기 실패('+file.name+'): '+xe.message);}
+  }else if(ext==='pdf'){
+    text='[PDF: '+file.name+'] 텍스트 추출 미지원 — 이미지로 변환 후 업로드해주세요.';
+  }else{
+    try{text=await file.text();}catch(te){throw new Error('파일 읽기 실패('+file.name+'): '+te.message);}
+  }
   return{type:'file',name:file.name,text};
 }
-async function addFile(file,target){
-  const att=await readFile(file);
-  (target==='weekly'?wd().weekly.attachments:wd().daily[target].attachments).push(att);
-  saveWeeks();render();
+
+// 복수 파일 처리 — 모두 읽은 뒤 render 1회만 ──────────────────────────────────
+async function addFiles(files,target){
+  const list=Array.from(files||[]);
+  if(!list.length)return;
+  const ATT=target==='weekly'?wd().weekly.attachments:wd().daily[target].attachments;
+  const errors=[];let added=0;
+  S._fileLoading=true;render();
+  for(const file of list){
+    if(ATT.some(a=>a.name===file.name)){errors.push('이미 추가됨: '+file.name);continue;}
+    try{ATT.push(await readFile(file));added++;}
+    catch(e){errors.push(e.message);}
+  }
+  S._fileLoading=false;saveWeeks();render();
+  if(errors.length)setTimeout(()=>alert('업로드 오류\n\n'+errors.join('\n')),100);
+  if(added>0)showToast(added+'개 파일 추가 완료!');
 }
+async function addFile(file,target){return addFiles([file],target);}
+
 function removeAtt(target,idx){
   (target==='weekly'?wd().weekly.attachments:wd().daily[target].attachments).splice(idx,1);
   saveWeeks();render();
@@ -1099,12 +1130,13 @@ function dailyPage(idx,data,dates){
     <div class="card-body">
       <div class="section-label">메모 (자유롭게 나열)</div>
       <textarea class="input-area" rows="4" placeholder="예: OLC 매뉴얼 검토, 회의 참석, 샘플 검수..." oninput="wd().daily[${idx}].rawInput=this.value;saveWeeks()">${esc(d.rawInput)}</textarea>
-      <div style="margin-top:0.85rem;" class="section-label">파일 또는 이미지 첨부</div>
+      <div style="margin-top:0.85rem;" class="section-label">파일 또는 이미지 첨부 <span style="font-weight:400;opacity:0.7;">(여러 개 동시 선택 가능)</span></div>
+      ${S._fileLoading?'<div class="loading" style="padding:0.8rem;"><span class="spinner"></span><span>파일 읽는 중...</span></div>':''}
       <div class="file-zone" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="fileDrop(event,${idx})">
-        <input type="file" accept=".xlsx,.xls,.txt,.csv,.pdf,.jpg,.jpeg,.png,.webp,.gif" multiple onchange="fileChange(event,${idx})">
+        <input type="file" accept=".xlsx,.xls,.txt,.csv,.jpg,.jpeg,.png,.webp,.gif" multiple onchange="fileChange(event,${idx})">
         <div class="file-zone-icon">📎</div>
-        <div class="file-zone-text">파일 또는 이미지를 드래그하거나 <strong>클릭해서 선택</strong></div>
-        <div class="file-zone-text" style="margin-top:0.12rem;font-size:0.69rem;">xlsx · txt · jpg · png 등</div>
+        <div class="file-zone-text">파일/이미지를 드래그하거나 <strong>클릭해서 선택</strong></div>
+        <div class="file-zone-text" style="margin-top:0.12rem;font-size:0.69rem;">xlsx · xls · txt · csv · jpg · png · gif — 여러 파일 동시 선택 OK</div>
       </div>
       ${d.attachments.length?`<div class="attachment-list">${d.attachments.map((a,ai)=>a.type==='image'
         ?`<div class="img-wrap"><img src="${a.preview}" class="attach-preview"><span class="attach-tag img-tag">🖼 ${esc(a.name.length>10?a.name.substring(0,10)+'…':a.name)} <button onclick="removeAtt(${idx},${ai})">✕</button></span></div>`
@@ -1206,11 +1238,13 @@ function weeklyPage(data,dates){
     <div class="card-header light"><span class="card-title">✍️ 추가 메모 / 파일 <span style="font-weight:400;font-size:0.74rem;opacity:0.65;">(선택)</span></span></div>
     <div class="card-body">
       <textarea class="input-area" rows="3" placeholder="이번 주 특이사항, 추가 내용 등..." oninput="wd().weekly.rawInput=this.value;saveWeeks()">${esc(w.rawInput)}</textarea>
-      <div style="margin-top:0.85rem;" class="section-label">파일 또는 이미지 첨부</div>
+      <div style="margin-top:0.85rem;" class="section-label">파일 또는 이미지 첨부 <span style="font-weight:400;opacity:0.7;">(여러 개 동시 선택 가능)</span></div>
+      ${S._fileLoading?'<div class="loading" style="padding:0.8rem;"><span class="spinner"></span><span>파일 읽는 중...</span></div>':''}
       <div class="file-zone" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="fileDrop(event,'weekly')">
         <input type="file" accept=".xlsx,.xls,.txt,.csv,.jpg,.jpeg,.png,.webp,.gif" multiple onchange="fileChange(event,'weekly')">
         <div class="file-zone-icon">📎</div>
-        <div class="file-zone-text">파일 또는 이미지를 드래그하거나 <strong>클릭해서 선택</strong></div>
+        <div class="file-zone-text">파일/이미지를 드래그하거나 <strong>클릭해서 선택</strong></div>
+        <div class="file-zone-text" style="margin-top:0.12rem;font-size:0.69rem;">xlsx · xls · txt · csv · jpg · png — 여러 파일 동시 선택 OK</div>
       </div>
       ${w.attachments.length?`<div class="attachment-list">${w.attachments.map((a,ai)=>a.type==='image'
         ?`<div class="img-wrap"><img src="${a.preview}" class="attach-preview"><span class="attach-tag img-tag">🖼 ${esc(a.name.length>10?a.name.substring(0,10)+'…':a.name)} <button onclick="removeAtt('weekly',${ai})">✕</button></span></div>`
@@ -1438,8 +1472,8 @@ window.saveWeeks=()=>saveWeeks();
 window.exportPDF=(t,i)=>exportPDF(t,i);
 window.exportExcel=(t,i)=>exportExcel(t,i);
 window.exportWord=(t,i)=>exportWord(t,i);
-window.fileChange=(e,t)=>Array.from(e.target.files).forEach(f=>addFile(f,t));
-window.fileDrop=(e,t)=>{e.preventDefault();e.currentTarget.classList.remove('drag-over');Array.from(e.dataTransfer.files).forEach(f=>addFile(f,t));};
+window.fileChange=(e,t)=>{addFiles(e.target.files,t);e.target.value='';};
+window.fileDrop=(e,t)=>{e.preventDefault();e.currentTarget.classList.remove('drag-over');addFiles(e.dataTransfer.files,t);};
 
 // ── INIT ───────────────────────────────────────────────────────────────────────
 render();
