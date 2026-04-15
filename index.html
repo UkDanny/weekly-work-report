@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주간 업무 일지</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  /* Accent (사용자 커스텀) */
+  --accent: #4f8ef7;
+  --accent-soft: #e8f0fe;
+  --accent-rgb: 79,142,247;
+
+  /* Light mode */
+  --bg: #f7f8fc;
+  --surface: #ffffff;
+  --surface2: #f0f2f8;
+  --navy: #1a2744;
+  --navy-light: #253561;
+  --text: #1a2744;
+  --text-muted: #7a86a1;
+  --border: #e2e6f0;
+  --success: #22c55e;
+  --tag-bg: #eef2ff;
+  --header-bg: #1a2744;
+  --header-text: #ffffff;
+  --sidebar-bg: #ffffff;
+  --card-header-bg: #1a2744;
+  --card-header-text: #ffffff;
+  --input-bg: #ffffff;
+  --input-bg-dashed: #f7f8fc;
+  --output-bg: #fafbff;
+  --shadow: rgba(26,39,68,0.08);
+}
+[data-theme="dark"] {
+  --bg: #0d0f18;
+  --surface: #161923;
+  --surface2: #1e2235;
+  --navy: #1e2444;
+  --navy-light: #2a3260;
+  --text: #dde3f0;
+  --text-muted: #6b7899;
+  --border: #2a2f48;
+  --success: #22c55e;
+  --tag-bg: #1a2040;
+  --header-bg: #0d0f18;
+  --header-text: #dde3f0;
+  --sidebar-bg: #161923;
+  --card-header-bg: #1e2444;
+  --card-header-text: #dde3f0;
+  --input-bg: #161923;
+  --input-bg-dashed: #1e2235;
+  --output-bg: #1a1e30;
+  --accent-soft: rgba(var(--accent-rgb), 0.12);
+  --shadow: rgba(0,0,0,0.3);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh;
+  filter: brightness(var(--brightness, 1));
+  transition: background 0.2s, color 0.2s;
+}
+
+/* HEADER */
+.header {
+  background: var(--header-bg); color: var(--header-text);
+  padding: 0 1.5rem; height: 58px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 12px var(--shadow);
+  transition: background 0.2s;
+}
+.header-title { font-size: 0.97rem; font-weight: 700; letter-spacing: 0.04em; }
+.header-sub { font-size: 0.68rem; color: #8ba3d4; font-family: 'DM Mono', monospace; }
+.header-right { display: flex; align-items: center; gap: 0.65rem; }
+.hbtn {
+  background: rgba(255,255,255,0.08); border: none; border-radius: 7px;
+  color: var(--header-text); cursor: pointer; transition: background 0.15s;
+  display: flex; align-items: center; gap: 0.35rem;
+  padding: 0.38rem 0.75rem; font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.78rem; font-weight: 600;
+}
+.hbtn:hover { background: rgba(255,255,255,0.16); }
+.user-badge { padding: 0.38rem 0.85rem; cursor: pointer; }
+.user-badge-name { font-size: 0.8rem; font-weight: 600; }
+.user-badge-dept { font-size: 0.66rem; color: #8ba3d4; }
+.week-nav {
+  display: flex; align-items: center; gap: 0.45rem;
+  background: rgba(255,255,255,0.06); border-radius: 7px; padding: 0.28rem 0.65rem;
+}
+.wbtn { background: none; border: none; color: #8ba3d4; cursor: pointer; font-size: 0.95rem; padding: 0.08rem 0.28rem; border-radius: 4px; transition: all 0.15s; line-height:1; }
+.wbtn:hover { background: rgba(255,255,255,0.1); color: white; }
+.wbtn:disabled { opacity: 0.3; cursor: not-allowed; }
+.week-label { font-size: 0.72rem; font-family: 'DM Mono', monospace; color: white; min-width: 130px; text-align: center; }
+.today-btn {
+  background: rgba(var(--accent-rgb),0.25); border: 1px solid rgba(var(--accent-rgb),0.4);
+  color: var(--accent); font-size: 0.66rem; font-weight: 700;
+  padding: 0.16rem 0.48rem; border-radius: 4px; cursor: pointer;
+  font-family: 'Noto Sans KR', sans-serif; transition: all 0.15s;
+}
+.today-btn:hover { background: rgba(var(--accent-rgb),0.4); }
+.lang-badge { font-size: 0.62rem; color: #8ba3d4; font-weight: 700; letter-spacing: 0.04em; padding: 0.22rem 0.55rem; background: rgba(255,255,255,0.05); border-radius: 5px; }
+
+/* LAYOUT */
+.layout { display: flex; min-height: calc(100vh - 58px); }
+
+/* SIDEBAR */
+.sidebar {
+  width: 192px; min-width: 192px; background: var(--sidebar-bg);
+  border-right: 1px solid var(--border);
+  padding: 1.1rem 0; display: flex; flex-direction: column; overflow-y: auto;
+  transition: background 0.2s;
+}
+.sb-section { padding: 0.32rem 1.1rem; font-size: 0.63rem; color: var(--text-muted); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 0.55rem; }
+.day-btn {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.55rem 1rem; cursor: pointer; border: none; background: none;
+  width: 100%; text-align: left; font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.82rem; font-weight: 500; color: var(--text-muted);
+  border-left: 3px solid transparent; transition: all 0.15s;
+}
+.day-btn:hover { background: var(--surface2); color: var(--text); }
+.day-btn.active { color: var(--accent); background: var(--accent-soft); border-left-color: var(--accent); font-weight: 700; }
+.day-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+.day-btn.active .day-dot { background: var(--accent); }
+.day-btn.has-data .day-dot { background: var(--success); }
+.day-btn.has-data.active .day-dot { background: var(--accent); }
+.day-info { flex: 1; min-width: 0; }
+.day-name { font-size: 0.82rem; }
+.day-date { font-size: 0.65rem; color: var(--text-muted); }
+.day-btn.active .day-date { color: var(--accent); opacity: 0.7; }
+.weekly-btn {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0.55rem 1rem; margin-top: 0.2rem;
+  cursor: pointer; border: none; background: none;
+  width: 100%; text-align: left; font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.82rem; font-weight: 600; color: var(--text-muted);
+  border-left: 3px solid transparent; transition: all 0.15s;
+}
+.weekly-btn:hover { background: var(--surface2); color: var(--text); }
+.weekly-btn.active { color: var(--text); background: var(--surface2); border-left-color: var(--text-muted); }
+.archive-hdr { display: flex; align-items: center; justify-content: space-between; padding: 0.38rem 1rem; margin-top: 0.7rem; cursor: pointer; border-top: 1px solid var(--border); padding-top: 0.7rem; }
+.archive-lbl { font-size: 0.63rem; color: var(--text-muted); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.archive-item {
+  padding: 0.4rem 1rem 0.4rem 1.45rem; font-size: 0.75rem; color: var(--text-muted);
+  cursor: pointer; border: none; background: none; width: 100%; text-align: left;
+  font-family: 'Noto Sans KR', sans-serif; transition: all 0.12s;
+  display: flex; align-items: center; gap: 0.32rem;
+}
+.archive-item:hover { background: var(--surface2); color: var(--text); }
+.archive-item.sel { color: var(--accent); font-weight: 600; }
+
+/* MAIN */
+.main { flex: 1; padding: 1.6rem 1.8rem; max-width: 860px; }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 1.3rem; flex-wrap: wrap; gap: 0.65rem; }
+.page-title { font-size: 1.18rem; font-weight: 700; }
+.page-date { font-size: 0.75rem; color: var(--text-muted); font-family: 'DM Mono', monospace; margin-top: 0.18rem; }
+
+/* CARD */
+.card { background: var(--surface); border-radius: 11px; border: 1px solid var(--border); margin-bottom: 1rem; overflow: hidden; transition: background 0.2s; }
+.card-header { padding: 0.8rem 1.25rem; background: var(--card-header-bg); color: var(--card-header-text); display: flex; align-items: center; justify-content: space-between; }
+.card-header.light { background: var(--surface2); color: var(--text); border-bottom: 1px solid var(--border); }
+.card-title { font-size: 0.82rem; font-weight: 700; }
+.card-body { padding: 1.05rem 1.25rem; }
+
+textarea {
+  width: 100%; border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 0.75rem 0.9rem; font-family: 'Noto Sans KR', sans-serif;
+  font-size: 0.85rem; line-height: 1.75; color: var(--text);
+  resize: vertical; transition: border-color 0.15s, background 0.2s;
+  background: var(--input-bg);
+}
+textarea:focus { outline: none; border-color: var(--accent); }
+textarea.input-area { min-height: 88px; border-style: dashed; background: var(--input-bg-dashed); }
+textarea.output-area { min-height: 88px; background: var(--output-bg); }
+
+/* DETAIL TOGGLE */
+.detail-toggle { display: inline-flex; border: 1.5px solid var(--border); border-radius: 7px; overflow: hidden; }
+.detail-btn {
+  padding: 0.3rem 0.75rem; border: none; background: none;
+  font-family: 'Noto Sans KR', sans-serif; font-size: 0.73rem; font-weight: 600;
+  color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+  border-right: 1px solid var(--border);
+}
+.detail-btn:last-child { border-right: none; }
+.detail-btn.active { background: var(--accent); color: white; }
+.detail-btn:hover:not(.active) { background: var(--surface2); color: var(--text); }
+
+/* BUTTONS */
+.btn {
+  padding: 0.5rem 1.1rem; border-radius: 7px; border: none;
+  font-family: 'Noto Sans KR', sans-serif; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 0.38rem;
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { filter: brightness(1.1); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1.5px solid var(--border); }
+.btn-secondary:hover { background: var(--border); }
+.btn-dark { background: var(--navy); color: white; }
+.btn-dark:hover { background: var(--navy-light); }
+.btn-sm { padding: 0.28rem 0.7rem; font-size: 0.72rem; }
+
+/* EXPORT BUTTONS */
+.export-row { display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: center; margin-top: 0.8rem; padding-top: 0.8rem; border-top: 1px solid var(--border); }
+.export-label { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; flex-shrink: 0; }
+.btn-export { padding: 0.3rem 0.75rem; border-radius: 6px; border: 1.5px solid var(--border); background: var(--surface2); color: var(--text); font-family: 'Noto Sans KR', sans-serif; font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 0.3rem; }
+.btn-export:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+/* FILE ZONE */
+.file-zone {
+  border: 2px dashed var(--border); border-radius: 9px;
+  padding: 1rem; text-align: center; cursor: pointer;
+  transition: all 0.15s; background: var(--input-bg-dashed); position: relative;
+}
+.file-zone:hover, .file-zone.drag-over { border-color: var(--accent); background: var(--accent-soft); }
+.file-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.file-zone-icon { font-size: 1.35rem; margin-bottom: 0.22rem; }
+.file-zone-text { font-size: 0.77rem; color: var(--text-muted); }
+.file-zone-text strong { color: var(--accent); }
+.attachment-list { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.6rem; align-items: flex-end; }
+.attach-tag { display: inline-flex; align-items: center; gap: 0.32rem; background: var(--tag-bg); color: var(--accent); padding: 0.22rem 0.58rem; border-radius: 5px; font-size: 0.75rem; font-weight: 600; }
+.attach-tag.img-tag { background: #fef3c7; color: #d97706; }
+.attach-tag button { background: none; border: none; cursor: pointer; color: inherit; font-size: 0.82rem; line-height: 1; padding: 0 0.08rem; }
+.attach-preview { width: 52px; height: 52px; object-fit: cover; border-radius: 5px; border: 1.5px solid var(--border); display: block; }
+.img-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.26rem; }
+
+/* LOADING */
+.loading { display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted); font-size: 0.8rem; padding: 0.35rem 0; }
+.spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.auto-banner { background: var(--accent-soft); border: 1.5px solid rgba(var(--accent-rgb),0.22); border-radius: 9px; padding: 0.82rem 1.1rem; display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.9rem; font-size: 0.8rem; color: var(--text); }
+
+/* BADGES */
+.badge { display: inline-block; padding: 0.11rem 0.44rem; border-radius: 4px; font-size: 0.67rem; font-weight: 700; }
+.badge-green { background: #dcfce7; color: #16a34a; }
+.badge-blue { background: var(--accent-soft); color: var(--accent); }
+.section-label { font-size: 0.69rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 0.4rem; }
+.preview-label { font-size: 0.67rem; font-weight: 700; color: white; background: var(--accent); display: inline-block; padding: 0.14rem 0.5rem; border-radius: 4px; margin-bottom: 0.4rem; }
+.preview-section { margin-bottom: 0.95rem; }
+.row { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+
+/* MODAL */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 200; display: flex; align-items: center; justify-content: center; }
+.modal { background: var(--surface); border-radius: 13px; padding: 1.7rem; width: 400px; box-shadow: 0 8px 40px var(--shadow); border: 1px solid var(--border); }
+.modal h2 { font-size: 1rem; margin-bottom: 1rem; font-weight: 700; }
+.form-group { margin-bottom: 0.85rem; }
+.form-label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.3rem; display: block; }
+.form-input { width: 100%; padding: 0.58rem 0.82rem; border: 1.5px solid var(--border); border-radius: 7px; font-family: 'Noto Sans KR', sans-serif; font-size: 0.84rem; transition: border-color 0.15s; background: var(--input-bg); color: var(--text); }
+.form-input:focus { outline: none; border-color: var(--accent); }
+
+/* SETTINGS PANEL */
+.settings-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 150; }
+.settings-panel {
+  position: fixed; top: 0; right: 0; height: 100vh; width: 320px;
+  background: var(--surface); border-left: 1px solid var(--border);
+  z-index: 151; overflow-y: auto; padding: 1.5rem;
+  box-shadow: -4px 0 24px var(--shadow);
+  transition: background 0.2s;
+}
+.settings-panel h2 { font-size: 0.95rem; font-weight: 700; margin-bottom: 1.3rem; display: flex; align-items: center; justify-content: space-between; }
+.settings-panel h2 button { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 1.1rem; }
+.settings-section { margin-bottom: 1.5rem; }
+.settings-section-title { font-size: 0.68rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+
+/* THEME TOGGLE */
+.theme-toggle { display: flex; border: 1.5px solid var(--border); border-radius: 8px; overflow: hidden; }
+.theme-btn { flex: 1; padding: 0.5rem; border: none; background: none; font-family: 'Noto Sans KR', sans-serif; font-size: 0.8rem; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center; gap: 0.4rem; border-right: 1px solid var(--border); }
+.theme-btn:last-child { border-right: none; }
+.theme-btn.active { background: var(--accent); color: white; }
+.theme-btn:hover:not(.active) { background: var(--surface2); color: var(--text); }
+
+/* BRIGHTNESS */
+.brightness-slider { width: 100%; -webkit-appearance: none; appearance: none; height: 5px; border-radius: 3px; outline: none; background: linear-gradient(to right, var(--accent) 0%, var(--accent) 50%, var(--border) 50%); cursor: pointer; }
+.brightness-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
+.brightness-row { display: flex; align-items: center; gap: 0.6rem; margin-top: 0.5rem; }
+.brightness-val { font-size: 0.72rem; font-family: 'DM Mono', monospace; color: var(--text-muted); min-width: 36px; text-align: right; }
+
+/* COLOR PICKER */
+.color-presets { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.7rem; }
+.color-swatch { width: 28px; height: 28px; border-radius: 6px; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; border: 2px solid transparent; }
+.color-swatch:hover { transform: scale(1.12); }
+.color-swatch.selected { border-color: var(--text); box-shadow: 0 0 0 2px white, 0 0 0 4px var(--text); }
+.color-custom-row { display: flex; align-items: center; gap: 0.55rem; }
+.color-custom-input { width: 36px; height: 32px; border-radius: 6px; border: 1.5px solid var(--border); cursor: pointer; padding: 1px; background: var(--input-bg); }
+.color-custom-hex { flex: 1; padding: 0.38rem 0.6rem; border: 1.5px solid var(--border); border-radius: 6px; font-family: 'DM Mono', monospace; font-size: 0.78rem; background: var(--input-bg); color: var(--text); }
+.color-custom-hex:focus { outline: none; border-color: var(--accent); }
+
+/* TOAST */
+.toast { position: fixed; bottom: 1.8rem; right: 1.8rem; background: var(--navy); color: white; padding: 0.65rem 1.2rem; border-radius: 9px; font-size: 0.8rem; font-weight: 600; box-shadow: 0 4px 20px rgba(0,0,0,0.22); animation: slideUp 0.25s ease; z-index: 300; }
+@keyframes slideUp { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+
+.empty-state { text-align: center; padding: 2.8rem 1rem; color: var(--text-muted); }
+
+/* 진척상황 */
+.prog-item { display:flex; align-items:flex-start; gap:0.7rem; padding:0.65rem 0; border-bottom:1px solid var(--border); }
+.prog-item:last-child { border-bottom:none; }
+.prog-status { padding:0.18rem 0.55rem; border-radius:5px; font-size:0.68rem; font-weight:700; flex-shrink:0; min-width:44px; text-align:center; }
+.s-done   { background:#dcfce7; color:#16a34a; }
+.s-prog   { background:#dbeafe; color:#1d4ed8; }
+.s-delay  { background:#fef3c7; color:#d97706; }
+.s-new    { background:#f3e8ff; color:#7c3aed; }
+.s-drop   { background:#fee2e2; color:#dc2626; }
+.prog-task { font-size:0.82rem; font-weight:600; margin-bottom:0.15rem; }
+.prog-note { font-size:0.76rem; color:var(--text-muted); line-height:1.5; }
+.prog-bar-wrap { margin-top:0.3rem; background:var(--border); border-radius:3px; height:4px; width:100%; }
+.prog-bar { height:4px; border-radius:3px; background:var(--accent); transition:width 0.4s; }
+
+/* 내보내기 모달 */
+.export-opt-row { display:flex; align-items:center; justify-content:space-between; padding:0.6rem 0; border-bottom:1px solid var(--border); }
+.export-opt-row:last-child { border-bottom:none; }
+.export-opt-label { font-size:0.83rem; font-weight:600; }
+.export-opt-sub { font-size:0.72rem; color:var(--text-muted); margin-top:0.1rem; }
+.lang-toggle { display:inline-flex; border:1.5px solid var(--border); border-radius:7px; overflow:hidden; }
+.lang-btn { padding:0.28rem 0.7rem; border:none; background:none; font-family:'Noto Sans KR',sans-serif; font-size:0.75rem; font-weight:700; color:var(--text-muted); cursor:pointer; transition:all 0.15s; border-right:1px solid var(--border); }
+.lang-btn:last-child { border-right:none; }
+.lang-btn.active { background:var(--accent); color:white; }
+.toggle-switch { position:relative; width:38px; height:20px; cursor:pointer; }
+.toggle-switch input { opacity:0; width:0; height:0; }
+.toggle-track { position:absolute; inset:0; background:var(--border); border-radius:20px; transition:0.2s; }
+.toggle-switch input:checked + .toggle-track { background:var(--accent); }
+.toggle-knob { position:absolute; left:2px; top:2px; width:16px; height:16px; background:white; border-radius:50%; transition:0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+.toggle-switch input:checked ~ .toggle-knob { transform:translateX(18px); }
+.pdf-option { border: 2px solid var(--border); border-radius: 10px; padding: 1rem 1.2rem; cursor: pointer; transition: all 0.15s; background: var(--surface); display: flex; align-items: flex-start; gap: 0.8rem; }
+.pdf-option:hover { border-color: var(--accent); background: var(--accent-soft); }
+.pdf-option.selected { border-color: var(--accent); background: var(--accent-soft); }
+.pdf-option-icon { font-size: 1.6rem; flex-shrink: 0; margin-top: 0.1rem; }
+.pdf-option-title { font-size: 0.88rem; font-weight: 700; margin-bottom: 0.2rem; }
+.pdf-option-desc { font-size: 0.75rem; color: var(--text-muted); line-height: 1.5; }
+.empty-state .ei { font-size: 2.4rem; margin-bottom: 0.65rem; }
+.empty-state p { font-size: 0.84rem; line-height: 1.65; }
+
+/* PRINT STYLES */
+@media print {
+  .header, .sidebar, .settings-overlay, .settings-panel, .toast,
+  .card-header .btn, .card-header .btn-sm, .export-row, .file-zone,
+  .attachment-list, .input-area, .page-header .detail-toggle { display: none !important; }
+  .layout { display: block; }
+  .main { max-width: 100%; padding: 0; }
+  .card { break-inside: avoid; border: 1px solid #ccc; }
+  .card-header { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  body { filter: none !important; }
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ── CONSTANTS ────────────────────────────────────────────────────────────────
+const DAYS=['월요일','화요일','수요일','목요일','금요일'];
+const DAY_SHORT=['월','화','수','목','금'];
+const COLOR_PRESETS=['#4f8ef7','#6366f1','#8b5cf6','#ec4899','#ef4444','#f97316','#22c55e','#14b8a6','#0ea5e9','#64748b','#1a2744','#92400e'];
+
+// ── WEEK UTILS ────────────────────────────────────────────────────────────────
+function getWeekDates(k){
+  const[y,w]=k.split('-W').map(Number);
+  const jan1=new Date(y,0,1);const j1d=jan1.getDay()||7;
+  const mon=new Date(jan1);mon.setDate(jan1.getDate()+(w-1)*7-(j1d-1));
+  return Array(5).fill(0).map((_,i)=>{const d=new Date(mon);d.setDate(mon.getDate()+i);return d;});
+}
+function dateToKey(d){
+  const day=d.getDay(),mon=new Date(d);
+  mon.setDate(d.getDate()-(day===0?6:day-1));
+  const y=mon.getFullYear(),jan1=new Date(y,0,1);
+  const wn=Math.ceil(((mon-jan1)/86400000+(jan1.getDay()||7))/7);
+  return`${y}-W${String(wn).padStart(2,'0')}`;
+}
+function curKey(){return dateToKey(new Date());}
+function fmtDate(d){return`${d.getFullYear()}년 ${String(d.getMonth()+1).padStart(2,'0')}월 ${String(d.getDate()).padStart(2,'0')}일`;}
+function fmtShort(d){return`${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;}
+
+// ── STORAGE ───────────────────────────────────────────────────────────────────
+function makeDay(){return{rawInput:'',content:'',progress:'',insight:'',prevSummary:'',attachments:[]};}
+function makeWeekly(){return{rawInput:'',summary:'',nextPlan:'',analysis:'',attachments:[]};}
+function loadWeeks(){try{return JSON.parse(localStorage.getItem('wdr_weeks')||'{}');}catch{return{};}}
+function saveWeeks(){localStorage.setItem('wdr_weeks',JSON.stringify(S.weeks));}
+function ensureWeek(k){
+  if(!S.weeks[k])S.weeks[k]={daily:Array(5).fill(0).map(makeDay),weekly:makeWeekly()};
+  S.weeks[k].daily.forEach(d=>{if(!d.attachments)d.attachments=[];});
+  if(!S.weeks[k].weekly.attachments)S.weeks[k].weekly.attachments=[];
+  return S.weeks[k];
+}
+function wd(){return ensureWeek(S.weekKey);}
+
+// ── THEME ─────────────────────────────────────────────────────────────────────
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme',S.theme);
+  document.documentElement.style.setProperty('--accent',S.accent);
+  // Extract RGB
+  const hex=S.accent.replace('#','');
+  const r=parseInt(hex.substring(0,2),16),g=parseInt(hex.substring(2,4),16),b=parseInt(hex.substring(4,6),16);
+  document.documentElement.style.setProperty('--accent-rgb',`${r},${g},${b}`);
+  document.body.style.filter=`brightness(${S.brightness})`;
+}
+function loadThemePrefs(){
+  try{
+    const t=JSON.parse(localStorage.getItem('wdr_theme')||'{}');
+    S.theme=t.theme||'light'; S.accent=t.accent||'#4f8ef7'; S.brightness=t.brightness||1;
+  }catch{}
+}
+function saveThemePrefs(){
+  localStorage.setItem('wdr_theme',JSON.stringify({theme:S.theme,accent:S.accent,brightness:S.brightness}));
+}
+
+// ── STATE ──────────────────────────────────────────────────────────────────────
+const S={
+  user:JSON.parse(localStorage.getItem('wdr_user')||'{"name":"","dept":"","position":""}'),
+  tab:0, weekKey:curKey(), weeks:loadWeeks(),
+  detail:'mid', loading:false, autoGen:false, prevSumGen:false, progressGen:false, showPdfModal:false, showExportModal:false,
+  showModal:false, showArchive:false, showSettings:false, toast:null, progressItems:[], _pdfLang:'ko', _pdfIncludeProgress:true, _exportFmt:null,
+  theme:'light', accent:'#4f8ef7', brightness:1, customHex:'#4f8ef7',
+};
+loadThemePrefs();
+
+// ── CLAUDE API ─────────────────────────────────────────────────────────────────
+async function callClaude(sys,msgs){
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:msgs})
+  });
+  const data=await res.json();
+  if(data.error)throw new Error(data.error.message);
+  return data.content?.map(c=>c.text||'').join('')||'';
+}
+function detInst(){return{simple:'2~3줄 간결하게.',mid:'3~5줄 적당히.',detail:'6~10줄 상세하게.'}[S.detail];}
+const LANG=`
+【다국어 처리】입력은 한국어·영어·일본어·베트남어가 단독 또는 혼합될 수 있습니다.
+언어에 무관하게 완전히 이해하고, 출력은 반드시 한국어로 작성하십시오.`;
+
+// ── 진척상황 분석 ─────────────────────────────────────────────────────────────
+async function genProgress(auto){
+  const dates=getWeekDates(S.weekKey);
+  // 전주 데이터
+  const prevMon=new Date(dates[0]);prevMon.setDate(prevMon.getDate()-7);
+  const pKey=dateToKey(prevMon);const pData=S.weeks[pKey];
+  // 이번 주 데이터
+  const thisData=wd();
+  const thisText=thisData.daily.map((d,i)=>(d.content||d.progress)?`[${DAY_SHORT[i]}요일]
+업무: ${d.content||''}
+결과: ${d.progress||''}`:'' ).filter(Boolean).join('\n\n');
+  if(!thisText){if(!auto)alert('이번 주 일일 업무를 먼저 작성해주세요.');return;}
+
+  let prevText='';
+  if(pData){
+    const pd=pData.daily.map((d,i)=>(d.content||d.progress)?`[${DAY_SHORT[i]}요일] 업무: ${d.content||''} / 결과: ${d.progress||''}`:'' ).filter(Boolean).join('\n');
+    const pw=pData.weekly?.summary||'';
+    prevText=(pd||pw)?`[전주 일일 업무]\n${pd}\n${pw?'[전주 주간요약] '+pw:''}`:'';
+  }
+  if(auto)S.progressGen=true;else S.loading=true;render();
+
+  const sys=`당신은 업무 진척상황을 분석하는 전문 비서입니다.
+전주와 이번 주 업무 내용을 비교해, 이번 주에 계속 진행되거나 완료된 항목들의 진척상황을 파악합니다.
+반드시 순수 JSON 배열만 반환하세요. 마크다운 없이.
+${LANG}
+형식: [{"task":"업무 항목명","status":"done|inprogress|delayed|new|dropped","note":"간략한 진척 설명","pct":0~100}]
+status 기준: done=완료, inprogress=진행중, delayed=지연/미완, new=이번주 신규, dropped=언급없음/중단
+pct: 완료율 추정치(0~100)`;
+
+  const userMsg=`${prevText?'[전주 업무]\n'+prevText+'\n\n':''}[이번 주 업무]\n${thisText}\n\n전주에서 이어진 항목들의 진척상황을 분석해주세요. 신규 항목도 포함하세요.`;
+  try{
+    const raw=await callClaude(sys,[{role:'user',content:userMsg}]);
+    const r=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    S.progressItems=Array.isArray(r)?r:[];saveWeeks();
+  }catch(e){if(!auto)alert('오류: '+e.message);}
+  if(auto)S.progressGen=false;else S.loading=false;render();
+}
+
+// ── 번역 (영어 내보내기) ───────────────────────────────────────────────────────
+async function translateToEn(obj){
+  const sys=`You are a professional translator. Translate Korean work report content to English.
+Return ONLY a JSON object with the same keys as input but values translated to English. No markdown.`;
+  const raw=await callClaude(sys,[{role:'user',content:'Translate this to English:\n'+JSON.stringify(obj)}]);
+  return JSON.parse(raw.replace(/```json|```/g,'').trim());
+}
+
+function buildContent(parts,atts){
+  const imgs=(atts||[]).filter(a=>a.type==='image');
+  if(!imgs.length)return parts.filter(Boolean).join('\n\n');
+  const c=[];
+  imgs.forEach(a=>c.push({type:'image',source:{type:'base64',media_type:a.mediaType,data:a.data}}));
+  const t=parts.filter(Boolean).join('\n\n');
+  if(t)c.push({type:'text',text:t});
+  return c;
+}
+
+// 전주 요약 자동
+async function genPrevSummary(auto){
+  const cDates=getWeekDates(S.weekKey);
+  const prevMon=new Date(cDates[0]);prevMon.setDate(prevMon.getDate()-7);
+  const pKey=dateToKey(prevMon);const pData=S.weeks[pKey];
+  if(!pData){if(!auto)alert('저번 주 업무 기록이 없습니다.');return;}
+  const pText=pData.daily.map((d,i)=>(d.content||d.progress)?`[${DAY_SHORT[i]}요일]\n업무: ${d.content||''}\n결과: ${d.progress||''}`:'' ).filter(Boolean).join('\n\n');
+  const pWeekly=pData.weekly?.summary||'';
+  if(!pText&&!pWeekly){if(!auto)alert('저번 주 작성된 내용이 없습니다.');return;}
+  if(auto)S.prevSumGen=true;else S.loading=true;render();
+  const pDates=getWeekDates(pKey);
+  const sys=`직장인 전주 업무 요약을 작성하는 비서입니다. 저번 주 내용 → 이번 주 월요일 전주 요약. 핵심 성과·특이사항 중심. 순수 텍스트만 반환. ${detInst()}${LANG}`;
+  try{
+    const r=await callClaude(sys,[{role:'user',content:`저번 주(${fmtDate(pDates[0])}~${fmtDate(pDates[4])}):\n${pText}${pWeekly?'\n[주간요약] '+pWeekly:''}`}]);
+    wd().daily[0].prevSummary=r.trim();saveWeeks();
+  }catch(e){if(!auto)alert('오류: '+e.message);}
+  if(auto)S.prevSumGen=false;else S.loading=false;render();
+}
+
+async function genDaily(idx){
+  const d=wd().daily[idx];
+  if(!d.rawInput.trim()&&!d.attachments.length){alert('메모를 입력하거나 파일/이미지를 업로드해주세요.');return;}
+  S.loading=true;render();
+  const dates=getWeekDates(S.weekKey);
+  const sys=`직장인 일일 업무 일지 작성 비서. 메모·파일·이미지 분석해 작성. 이미지 있으면 내용 파악해 통합. 순수 JSON만 반환. 마크다운 없이. ${detInst()}${LANG}\n형식: {"content":"업무 내용","progress":"추진 내용 및 결과","insight":"업무 인사이트"}`;
+  const parts=[];
+  if(d.rawInput)parts.push(`[메모]\n${d.rawInput}`);
+  d.attachments.filter(a=>a.type==='file').forEach(a=>parts.push(`[파일: ${a.name}]\n${a.text}`));
+  if(d.attachments.some(a=>a.type==='image'))parts.push('[첨부 이미지를 파악해 포함하세요.]');
+  const content=buildContent([`${DAYS[idx]} (${fmtDate(dates[idx])}) 일일 업무 일지 작성해주세요.`,...parts],d.attachments);
+  try{
+    const raw=await callClaude(sys,[{role:'user',content}]);
+    const r=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    d.content=r.content||'';d.progress=r.progress||'';d.insight=r.insight||'';saveWeeks();
+  }catch(e){alert('오류: '+e.message);}
+  S.loading=false;render();
+}
+
+async function genWeekly(auto){
+  const w=wd().weekly,dates=getWeekDates(S.weekKey);
+  const dSum=wd().daily.map((d,i)=>(d.content||d.progress)?`[${DAY_SHORT[i]}] 업무: ${d.content||''}\n결과: ${d.progress||''}`:'' ).filter(Boolean).join('\n\n');
+  if(!dSum&&!w.rawInput&&!w.attachments.length){if(!auto)alert('일일 업무 내용을 먼저 작성해주세요.');return;}
+  if(auto)S.autoGen=true;else S.loading=true;render();
+  const sys=`직장인 주간 업무 보고서 작성 비서. 일일 업무·메모·파일·이미지 종합. 이미지 분석 통합. 순수 JSON만 반환. ${detInst()}${LANG}\n형식: {"summary":"금주 업무 요약","nextPlan":"차주 업무 계획","analysis":"분석 및 시사점"}`;
+  const parts=[];
+  if(dSum)parts.push(`[일일 업무]\n${dSum}`);
+  if(w.rawInput)parts.push(`[추가 메모]\n${w.rawInput}`);
+  w.attachments.filter(a=>a.type==='file').forEach(a=>parts.push(`[파일: ${a.name}]\n${a.text}`));
+  if(w.attachments.some(a=>a.type==='image'))parts.push('[첨부 이미지를 파악해 포함하세요.]');
+  const content=buildContent([`${fmtDate(dates[0])}~${fmtDate(dates[4])} 주간 보고서 작성해주세요.`,...parts],w.attachments);
+  try{
+    const raw=await callClaude(sys,[{role:'user',content}]);
+    const r=JSON.parse(raw.replace(/```json|```/g,'').trim());
+    w.summary=r.summary||'';w.nextPlan=r.nextPlan||'';w.analysis=r.analysis||'';saveWeeks();
+  }catch(e){if(!auto)alert('오류: '+e.message);}
+  if(auto)S.autoGen=false;else S.loading=false;render();
+}
+
+// ── FILE HANDLING ──────────────────────────────────────────────────────────────
+async function readFile(file){
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(['jpg','jpeg','png','gif','webp'].includes(ext)){
+    return new Promise(res=>{
+      const r=new FileReader();
+      r.onload=e=>res({type:'image',name:file.name,data:e.target.result.split(',')[1],mediaType:file.type||'image/jpeg',preview:e.target.result});
+      r.readAsDataURL(file);
+    });
+  }
+  let text='';
+  if(['xlsx','xls'].includes(ext)){
+    const buf=await file.arrayBuffer();const wb=XLSX.read(buf,{type:'array'});
+    text=wb.SheetNames.map(sn=>{const csv=XLSX.utils.sheet_to_csv(wb.Sheets[sn]);return csv.trim()?`[시트: ${sn}]\n${csv}`:'';}).filter(Boolean).join('\n\n');
+  }else{text=await file.text();}
+  return{type:'file',name:file.name,text};
+}
+async function addFile(file,target){
+  const att=await readFile(file);
+  (target==='weekly'?wd().weekly.attachments:wd().daily[target].attachments).push(att);
+  saveWeeks();render();
+}
+function removeAtt(target,idx){
+  (target==='weekly'?wd().weekly.attachments:wd().daily[target].attachments).splice(idx,1);
+  saveWeeks();render();
+}
+
+// ── EXPORT FUNCTIONS ───────────────────────────────────────────────────────────
+// PDF 모달 열기
+function openPdfModal(){S.showPdfModal=true;render();}
+
+// 일일 페이지 HTML 생성 함수 (공통)
+function dailyPageHTML(idx,dates,user,accent){
+  const d=wd().daily[idx];const date=dates[idx];
+  const pba=idx<4?'page-break-after:always;':'';
+  return`<div style="${pba}padding:1.2rem 0;">
+<div style="text-align:center;margin-bottom:1.2rem;">
+  <div style="font-size:14pt;font-weight:700;">일일 업무 일지</div>
+  <div style="font-size:10pt;color:#666;margin-top:0.2rem;">DAILY WORK REPORT</div>
+</div>
+<table style="width:100%;border-collapse:collapse;margin-bottom:1rem;font-size:9pt;">
+<tr><td style="background:${accent};color:white;padding:5pt 8pt;font-weight:700;width:90pt;">소&nbsp;&nbsp;속</td><td style="border:1pt solid #ddd;padding:5pt 8pt;">${esc(user.dept)||''}</td></tr>
+<tr><td style="background:${accent};color:white;padding:5pt 8pt;font-weight:700;">직위 / 성명</td><td style="border:1pt solid #ddd;padding:5pt 8pt;">${esc(user.position)||''} ${esc(user.name)||''}</td></tr>
+<tr><td style="background:${accent};color:white;padding:5pt 8pt;font-weight:700;">작성일자</td><td style="border:1pt solid #ddd;padding:5pt 8pt;">${fmtDate(date)} (${DAY_SHORT[idx]})</td></tr>
+</table>
+${idx===0&&d.prevSummary?`<div style="background:${accent};color:white;padding:5pt 8pt;font-weight:700;font-size:9.5pt;margin-top:0.8rem;">전주 업무 요약</div><div style="border:1pt solid #ddd;padding:7pt 8pt;font-size:9.5pt;line-height:1.7;white-space:pre-wrap;min-height:50pt;">${esc(d.prevSummary)}</div>`:''}
+<div style="background:${accent};color:white;padding:5pt 8pt;font-weight:700;font-size:9.5pt;margin-top:0.8rem;">업무 내용</div>
+<div style="border:1pt solid #ddd;padding:7pt 8pt;font-size:9.5pt;line-height:1.7;white-space:pre-wrap;min-height:55pt;">${esc(d.content||'')}</div>
+<div style="background:${accent};color:white;padding:5pt 8pt;font-weight:700;font-size:9.5pt;margin-top:0.8rem;">추진 내용 및 결과</div>
+<div style="border:1pt solid #ddd;padding:7pt 8pt;font-size:9.5pt;line-height:1.7;white-space:pre-wrap;min-height:55pt;">${esc(d.progress||'')}</div>
+<div style="background:${accent};color:white;padding:5pt 8pt;font-weight:700;font-size:9.5pt;margin-top:0.8rem;">업무 인사이트</div>
+<div style="border:1pt solid #ddd;padding:7pt 8pt;font-size:9.5pt;line-height:1.7;white-space:pre-wrap;min-height:45pt;">${esc(d.insight||'')}</div>
+</div>`;
+}
+
+function weeklyPageHTML(dates,user,accent,w){
+  return`<div style="padding:1.2rem 0;">
+<div style="text-align:center;margin-bottom:1.2rem;">
+  <div style="font-size:14pt;font-weight:700;">주간 업무 보고</div>
+  <div style="font-size:10pt;color:#666;margin-top:0.2rem;">WEEKLY WORK REPORT</div>
+</div>
+<table style="width:100%;border-collapse:collapse;margin-bottom:1rem;font-size:9pt;">
+<tr><td style="background:${accent};color:white;padding:5pt 8pt;font-weight:700;width:90pt;">소&nbsp;&nbsp;속</td><td style="border:1pt solid #ddd;padding:5pt 8pt;">${esc(user.dept)||''}</td></tr>
+<tr><td style="background:${accent};color:white;padding:5pt 8pt;font-weight:700;">직위 / 성명</td><td style="border:1pt solid #ddd;padding:5pt 8pt;">${esc(user.position)||''} ${esc(user.name)||''}</td></tr>
+<tr><td style="background:${accent};color:white;padding:5pt 8pt;font-weight:700;">보고일자</td><td style="border:1pt solid #ddd;padding:5pt 8pt;">${fmtDate(dates[0])} ~ ${fmtDate(dates[4])}</td></tr>
+</table>
+<div style="background:${accent};color:white;padding:5pt 8pt;font-weight:700;font-size:9.5pt;margin-top:0.8rem;">금주 업무 요약</div>
+<div style="border:1pt solid #ddd;padding:7pt 8pt;font-size:9.5pt;line-height:1.7;white-space:pre-wrap;min-height:65pt;">${esc(w.summary||'')}</div>
+<div style="background:${accent};color:white;padding:5pt 8pt;font-weight:700;font-size:9.5pt;margin-top:0.8rem;">차주 업무 계획</div>
+<div style="border:1pt solid #ddd;padding:7pt 8pt;font-size:9.5pt;line-height:1.7;white-space:pre-wrap;min-height:65pt;">${esc(w.nextPlan||'')}</div>
+<div style="background:${accent};color:white;padding:5pt 8pt;font-weight:700;font-size:9.5pt;margin-top:0.8rem;">분석 및 시사점</div>
+<div style="border:1pt solid #ddd;padding:7pt 8pt;font-size:9.5pt;line-height:1.7;white-space:pre-wrap;min-height:65pt;">${esc(w.analysis||'')}</div>
+</div>`;
+}
+
+function exportPDF(type,idx){
+  // 인쇄용 팝업
+  const dates=getWeekDates(S.weekKey);
+  const user=S.user;
+  const accent=S.accent;
+  let html='';
+  if(type==='daily'){
+    const d=wd().daily[idx];
+    const date=dates[idx];
+    html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Noto Sans KR',sans-serif;color:#1a2744;margin:2rem;font-size:10pt;}
+h1{font-size:14pt;font-weight:700;text-align:center;margin-bottom:0.3rem;}
+h2{font-size:11pt;font-weight:400;text-align:center;color:#666;margin-bottom:1.5rem;}
+.meta{border:1px solid #ccc;margin-bottom:1.2rem;}
+.meta-row{display:flex;border-bottom:1px solid #eee;font-size:9pt;}
+.meta-row:last-child{border-bottom:none;}
+.meta-key{background:${accent};color:white;padding:0.4rem 0.8rem;font-weight:700;min-width:90px;}
+.meta-val{padding:0.4rem 0.8rem;flex:1;}
+.section-title{background:${accent};color:white;padding:0.4rem 0.8rem;font-weight:700;font-size:9.5pt;margin-top:1rem;}
+.section-body{border:1px solid #ddd;padding:0.6rem 0.8rem;font-size:9.5pt;line-height:1.7;white-space:pre-wrap;min-height:60px;}
+@media print{body{margin:0.8rem;}}
+</style></head><body>
+<h1>일일 업무 일지</h1><h2>DAILY WORK REPORT</h2>
+<div class="meta">
+<div class="meta-row"><div class="meta-key">소  속</div><div class="meta-val">${esc(user.dept)||''}</div></div>
+<div class="meta-row"><div class="meta-key">직위 / 성명</div><div class="meta-val">${esc(user.position)||''} ${esc(user.name)||''}</div></div>
+<div class="meta-row"><div class="meta-key">작성일자</div><div class="meta-val">${fmtDate(date)} (${DAY_SHORT[idx]})</div></div>
+</div>
+${idx===0&&d.prevSummary?`<div class="section-title">전주 업무 요약</div><div class="section-body">${esc(d.prevSummary)}</div>`:''}
+<div class="section-title">업무 내용</div><div class="section-body">${esc(d.content||'')}</div>
+<div class="section-title">추진 내용 및 결과</div><div class="section-body">${esc(d.progress||'')}</div>
+<div class="section-title">업무 인사이트</div><div class="section-body">${esc(d.insight||'')}</div>
+<script>window.onload=()=>{window.print();}<\/script></body></html>`;
+  }else if(type==='weekly'||type==='full'){
+    const w=wd().weekly;
+    const CSS=`@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap');
+body{font-family:'Noto Sans KR',sans-serif;color:#1a2744;margin:0;font-size:10pt;}
+@media print{@page{margin:1.4cm;size:A4;}body{margin:0;}.page-break{page-break-after:always;}}`;
+    let body='';
+    if(type==='full'){
+      // 월~금 일일 일지 (각 1페이지)
+      for(let i=0;i<5;i++){
+        body+=`<div class="page-break">${dailyPageHTML(i,dates,user,accent)}</div>`;
+      }
+      // 주간 보고서
+      body+=weeklyPageHTML(dates,user,accent,w);
+    }else{
+      // 주간 보고서만
+      body+=weeklyPageHTML(dates,user,accent,w);
+    }
+    html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${CSS}</style></head><body>${body}<script>window.onload=()=>{window.print();}<\/script></body></html>`;
+  }
+  const win=window.open('','_blank');win.document.write(html);win.document.close();
+}
+
+function exportExcel(type,idx){
+  const wb=XLSX.utils.book_new();
+  const dates=getWeekDates(S.weekKey);
+  const user=S.user;
+  const accentHex=S.accent.replace('#','');
+
+  function addDaySheet(wb,dayIdx){
+    const d=wd().daily[dayIdx],date=dates[dayIdx];
+    const rows=[
+      ['일일 업무 일지'],['DAILY WORK REPORT'],
+      ['소  속','',user.dept||''],
+      ['직위 / 성명','',(user.position||'')+' '+(user.name||'')],
+      ['작성일자','',fmtDate(date)+' ('+DAY_SHORT[dayIdx]+')'],
+      [],
+    ];
+    if(dayIdx===0){rows.push(['전주 업무 요약']); rows.push([d.prevSummary||'']); rows.push([]);}
+    rows.push(['업무 내용']);rows.push([d.content||'']);rows.push([]);
+    rows.push(['추진 내용 및 결과']);rows.push([d.progress||'']);rows.push([]);
+    rows.push(['업무 인사이트']);rows.push([d.insight||'']);
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[{wch:20},{wch:10},{wch:60}];
+    XLSX.utils.book_append_sheet(wb,ws,DAYS[dayIdx]);
+  }
+
+  if(type==='daily'){
+    addDaySheet(wb,idx);
+  }else{
+    for(let i=0;i<5;i++)addDaySheet(wb,i);
+    const w=wd().weekly;
+    const wrows=[
+      ['주간 업무 보고'],['WEEKLY WORK REPORT'],
+      ['소  속','',user.dept||''],
+      ['직위 / 성명','',(user.position||'')+' '+(user.name||'')],
+      ['보고일자','',fmtDate(dates[0])+' ~ '+fmtDate(dates[4])],
+      [],
+      ['금주 업무 요약'],[w.summary||''],[],
+      ['차주 업무 계획'],[w.nextPlan||''],[],
+      ['분석 및 시사점'],[w.analysis||''],
+    ];
+    const wws=XLSX.utils.aoa_to_sheet(wrows);
+    wws['!cols']=[{wch:20},{wch:10},{wch:60}];
+    XLSX.utils.book_append_sheet(wb,wws,'주간 업무 보고');
+  }
+  const name=type==='daily'?`일일업무일지_${fmtDate(dates[idx]).replace(/[년월일 ]/g,'_').replace(/_+$/,'')}.xlsx`:`주간업무보고_${fmtShort(dates[0])}_${fmtShort(dates[4])}.xlsx`;
+  XLSX.writeFile(wb,name);
+}
+
+function exportWord(type,idx){
+  const dates=getWeekDates(S.weekKey);
+  const user=S.user;
+  const accent=S.accent;
+  let html='';
+  const metaStyle=`background:${accent};color:white;padding:4pt 8pt;font-weight:bold;`;
+  const sectionStyle=`background:${accent};color:white;padding:4pt 8pt;font-weight:bold;font-size:10pt;margin-top:10pt;`;
+  const bodyStyle=`border:1pt solid #ccc;padding:6pt 8pt;font-size:9.5pt;line-height:1.7;min-height:50pt;`;
+
+  if(type==='daily'){
+    const d=wd().daily[idx];const date=dates[idx];
+    html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="UTF-8"><style>
+body{font-family:'맑은 고딕',sans-serif;font-size:10pt;color:#1a2744;margin:2cm;}
+h1{font-size:16pt;font-weight:bold;text-align:center;}
+h2{font-size:12pt;text-align:center;color:#555;margin-bottom:16pt;}
+table{border-collapse:collapse;width:100%;margin-bottom:14pt;}
+td{border:1pt solid #ccc;padding:5pt 8pt;font-size:9.5pt;}
+.hd{${metaStyle}}
+.st{${sectionStyle}}
+.sb{${bodyStyle}}
+</style></head><body>
+<h1>일일 업무 일지</h1><h2>DAILY WORK REPORT</h2>
+<table><tr><td class="hd">소&nbsp;&nbsp;속</td><td>${esc(user.dept)||'&nbsp;'}</td></tr>
+<tr><td class="hd">직위 / 성명</td><td>${esc(user.position)||''} ${esc(user.name)||'&nbsp;'}</td></tr>
+<tr><td class="hd">작성일자</td><td>${fmtDate(date)} (${DAY_SHORT[idx]})</td></tr></table>
+${idx===0&&d.prevSummary?`<div class="st">전주 업무 요약</div><div class="sb">${esc(d.prevSummary).replace(/\n/g,'<br>')}</div>`:''}
+<div class="st">업무 내용</div><div class="sb">${esc(d.content||'&nbsp;').replace(/\n/g,'<br>')}</div>
+<div class="st">추진 내용 및 결과</div><div class="sb">${esc(d.progress||'&nbsp;').replace(/\n/g,'<br>')}</div>
+<div class="st">업무 인사이트</div><div class="sb">${esc(d.insight||'&nbsp;').replace(/\n/g,'<br>')}</div>
+</body></html>`;
+  }else{
+    const w=wd().weekly;
+    html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="UTF-8"><style>
+body{font-family:'맑은 고딕',sans-serif;font-size:10pt;color:#1a2744;margin:2cm;}
+h1{font-size:16pt;font-weight:bold;text-align:center;}
+h2{font-size:12pt;text-align:center;color:#555;margin-bottom:16pt;}
+table{border-collapse:collapse;width:100%;margin-bottom:14pt;}
+td{border:1pt solid #ccc;padding:5pt 8pt;font-size:9.5pt;}
+.hd{${metaStyle}}
+.st{${sectionStyle}}
+.sb{${bodyStyle}}
+</style></head><body>
+<h1>주간 업무 보고</h1><h2>WEEKLY WORK REPORT</h2>
+<table><tr><td class="hd">소&nbsp;&nbsp;속</td><td>${esc(user.dept)||'&nbsp;'}</td></tr>
+<tr><td class="hd">직위 / 성명</td><td>${esc(user.position)||''} ${esc(user.name)||'&nbsp;'}</td></tr>
+<tr><td class="hd">보고일자</td><td>${fmtDate(dates[0])} ~ ${fmtDate(dates[4])}</td></tr></table>
+<div class="st">금주 업무 요약</div><div class="sb">${esc(w.summary||'&nbsp;').replace(/\n/g,'<br>')}</div>
+<div class="st">차주 업무 계획</div><div class="sb">${esc(w.nextPlan||'&nbsp;').replace(/\n/g,'<br>')}</div>
+<div class="st">분석 및 시사점</div><div class="sb">${esc(w.analysis||'&nbsp;').replace(/\n/g,'<br>')}</div>
+</body></html>`;
+  }
+  const blob=new Blob([html],{type:'application/msword;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  const name=type==='daily'?`일일업무일지_${DAY_SHORT[idx]}요일.doc`:`주간업무보고_${fmtShort(dates[0])}_${fmtShort(dates[4])}.doc`;
+  a.download=name;a.click();URL.revokeObjectURL(a.href);
+}
+
+// ── LABELS ────────────────────────────────────────────────────────────────────
+const LABELS={ko:{
+  title1:'일일 업무 일지',title2:'DAILY WORK REPORT',
+  wtitle1:'주간 업무 보고',wtitle2:'WEEKLY WORK REPORT',
+  dept:'소  속',namePos:'직위 / 성명',date:'작성일자',reportDate:'보고일자',
+  prevSum:'전주 업무 요약',content:'업무 내용',progress:'추진 내용 및 결과',insight:'업무 인사이트',
+  summary:'금주 업무 요약',nextPlan:'차주 업무 계획',analysis:'분석 및 시사점',
+  progTitle:'업무 진척상황',status:'상태',task:'업무 항목',note:'내용',pct:'진척률',
+  statusLabel:{done:'완료',inprogress:'진행중',delayed:'지연',new:'신규',dropped:'중단'}
+},en:{
+  title1:'Daily Work Report',title2:'DAILY WORK REPORT',
+  wtitle1:'Weekly Work Report',wtitle2:'WEEKLY WORK REPORT',
+  dept:'Department',namePos:'Title / Name',date:'Date',reportDate:'Report Period',
+  prevSum:'Previous Week Summary',content:'Work Content',progress:'Progress & Results',insight:'Work Insights',
+  summary:'This Week Summary',nextPlan:'Next Week Plan',analysis:'Analysis & Implications',
+  progTitle:'Work Progress Tracking',status:'Status',task:'Task',note:'Notes',pct:'Progress',
+  statusLabel:{done:'Done',inprogress:'In Progress',delayed:'Delayed',new:'New',dropped:'Dropped'}
+}};
+function L(lang){return LABELS[lang]||LABELS.ko;}
+
+// ── 진척상황 HTML 블록 (PDF/Word 공통) ────────────────────────────────────────
+function progBlockHTML(prog,lang,accent){
+  if(!prog||!prog.length)return'';
+  const lb=L(lang);
+  const scColors={done:'#16a34a',inprogress:'#1d4ed8',delayed:'#d97706',new:'#7c3aed',dropped:'#dc2626'};
+  const scBg={done:'#dcfce7',inprogress:'#dbeafe',delayed:'#fef3c7',new:'#f3e8ff',dropped:'#fee2e2'};
+  const rows=prog.map(p=>{
+    const col=scColors[p.status]||'#555';const bg=scBg[p.status]||'#eee';
+    const sl=lb.statusLabel[p.status]||p.status;
+    const pct=Math.max(0,Math.min(100,p.pct||0));
+    return`<tr>
+      <td style="border:1pt solid #ddd;padding:4pt 6pt;font-size:9pt;">
+        <span style="background:${bg};color:${col};padding:2pt 5pt;border-radius:3pt;font-size:8pt;font-weight:700;">${sl}</span>
+      </td>
+      <td style="border:1pt solid #ddd;padding:4pt 6pt;font-size:9pt;font-weight:600;">${esc(p.task||'')}</td>
+      <td style="border:1pt solid #ddd;padding:4pt 6pt;font-size:8.5pt;">${esc(p.note||'')}</td>
+      <td style="border:1pt solid #ddd;padding:4pt 6pt;font-size:9pt;text-align:center;">${p.status==='new'?'NEW':pct+'%'}</td>
+    </tr>`;
+  }).join('');
+  return`<div style="background:${accent};color:white;padding:5pt 8pt;font-weight:700;font-size:9.5pt;margin-top:1rem;">${esc(lb.progTitle)}</div>
+<table style="width:100%;border-collapse:collapse;margin-top:4pt;">
+<tr style="background:${accent}22;">
+  <th style="border:1pt solid #ddd;padding:4pt 6pt;font-size:8.5pt;text-align:left;width:60pt;">${lb.status}</th>
+  <th style="border:1pt solid #ddd;padding:4pt 6pt;font-size:8.5pt;text-align:left;width:120pt;">${lb.task}</th>
+  <th style="border:1pt solid #ddd;padding:4pt 6pt;font-size:8.5pt;text-align:left;">${lb.note}</th>
+  <th style="border:1pt solid #ddd;padding:4pt 6pt;font-size:8.5pt;text-align:center;width:40pt;">${lb.pct}</th>
+</tr>${rows}</table>`;
+}
+
+// ── exportPDFWithData: 언어+진척상황 지원 멋진 PDF ───────────────────────────
+function exportPDFWithData(pdfType,wData,lang,prog){
+  const dates=getWeekDates(S.weekKey);const user=S.user;const accent=S.accent;const lb=L(lang);
+  const CSS=`@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;600;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;color:#1a2744;font-size:10pt;}
+@media print{@page{margin:1.2cm;size:A4;}body{margin:0;}.pb{page-break-after:always;}}
+.report-wrap{padding:1rem 0;}
+.report-header{text-align:center;padding:1.2rem;background:linear-gradient(135deg,${accent} 0%,${accent}cc 100%);color:white;border-radius:6pt;margin-bottom:1rem;}
+.report-title{font-size:16pt;font-weight:700;letter-spacing:0.05em;}
+.report-sub{font-size:9pt;opacity:0.85;margin-top:0.2rem;letter-spacing:0.12em;}
+.meta-table{width:100%;border-collapse:collapse;margin-bottom:1rem;}
+.meta-table td{border:1pt solid #e2e6f0;padding:5pt 8pt;font-size:9pt;}
+.meta-key{background:${accent}18;font-weight:700;width:90pt;color:${accent};}
+.sec-hd{background:${accent};color:white;padding:5pt 9pt;font-weight:700;font-size:9.5pt;margin-top:0.85rem;border-radius:2pt 2pt 0 0;display:flex;justify-content:space-between;align-items:center;}
+.sec-body{border:1pt solid #e2e6f0;padding:7pt 9pt;font-size:9.5pt;line-height:1.75;white-space:pre-wrap;min-height:60pt;border-radius:0 0 2pt 2pt;}
+.week-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-bottom:0.6rem;}
+.week-grid-full{grid-column:1/-1;}
+.stat-bar{display:flex;gap:0.5rem;margin-top:0.5rem;font-size:7.5pt;}
+.stat-pill{padding:2pt 6pt;border-radius:10pt;font-weight:700;}`;
+
+  // 주간 보고서 HTML 생성 (더 멋진 디자인)
+  function weeklyHTML(){
+    // 통계 요약
+    const prog_stats=prog.length?[
+      {label:lang==='en'?'Done':'완료',count:prog.filter(p=>p.status==='done').length,color:'#22c55e',bg:'#dcfce7'},
+      {label:lang==='en'?'In Progress':'진행중',count:prog.filter(p=>p.status==='inprogress').length,color:'#3b82f6',bg:'#dbeafe'},
+      {label:lang==='en'?'Delayed':'지연',count:prog.filter(p=>p.status==='delayed').length,color:'#f97316',bg:'#fef3c7'},
+      {label:lang==='en'?'New':'신규',count:prog.filter(p=>p.status==='new').length,color:'#8b5cf6',bg:'#f3e8ff'},
+    ].filter(s=>s.count>0):[];
+
+    return`<div class="report-wrap">
+<div class="report-header">
+  <div class="report-title">${lb.wtitle1}</div>
+  <div class="report-sub">${lb.wtitle2}</div>
+</div>
+<table class="meta-table">
+<tr><td class="meta-key">${lb.dept}</td><td>${esc(user.dept||'')}</td><td class="meta-key">${lb.namePos}</td><td>${esc(user.position||'')} ${esc(user.name||'')}</td></tr>
+<tr><td class="meta-key">${lb.reportDate}</td><td colspan="3">${fmtDate(dates[0])} ~ ${fmtDate(dates[4])}</td></tr>
+</table>
+${prog.length?`<div class="stat-bar">${prog_stats.map(s=>`<span class="stat-pill" style="background:${s.bg};color:${s.color};">${s.label} ${s.count}</span>`).join('')}</div>`:''}<div style="margin-bottom:0.3rem;"></div>
+<div class="sec-hd">${lb.summary}</div>
+<div class="sec-body">${esc(wData.summary||'')}</div>
+<div class="sec-hd">${lb.nextPlan}</div>
+<div class="sec-body">${esc(wData.nextPlan||'')}</div>
+<div class="sec-hd">${lb.analysis}</div>
+<div class="sec-body">${esc(wData.analysis||'')}</div>
+${progBlockHTML(prog,lang,accent)}
+</div>`;
+  }
+
+  let body='';
+  if(pdfType==='full'){
+    for(let i=0;i<5;i++)body+=`<div class="pb">${dailyPageHTML(i,dates,user,accent)}</div>`;
+    body+=weeklyHTML();
+  }else{
+    body+=weeklyHTML();
+  }
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>${CSS}</style></head><body>${body}<script>window.onload=()=>window.print();<\/script></body></html>`;
+  const win=window.open('','_blank');win.document.write(html);win.document.close();
+}
+
+// ── exportExcelWithData ───────────────────────────────────────────────────────
+function exportExcelWithData(pdfType,wData,lang,prog){
+  const wb=XLSX.utils.book_new();const dates=getWeekDates(S.weekKey);const user=S.user;const lb=L(lang);
+
+  function addDaySheet(wb,dayIdx){
+    const d=wd().daily[dayIdx],date=dates[dayIdx];
+    const rows=[[lb.title1],[lb.title2],[lb.dept,'',user.dept||''],[lb.namePos,'',(user.position||'')+' '+(user.name||'')],[lb.date,'',fmtDate(date)+' ('+DAY_SHORT[dayIdx]+')'],[]];
+    if(dayIdx===0){rows.push([lb.prevSum]);rows.push([d.prevSummary||'']);rows.push([]);}
+    rows.push([lb.content]);rows.push([d.content||'']);rows.push([]);
+    rows.push([lb.progress]);rows.push([d.progress||'']);rows.push([]);
+    rows.push([lb.insight]);rows.push([d.insight||'']);
+    const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:20},{wch:10},{wch:60}];
+    XLSX.utils.book_append_sheet(wb,ws,DAYS[dayIdx]);
+  }
+
+  if(pdfType==='full')for(let i=0;i<5;i++)addDaySheet(wb,i);
+  const wrows=[[lb.wtitle1],[lb.wtitle2],[lb.dept,'',user.dept||''],[lb.namePos,'',(user.position||'')+' '+(user.name||'')],[lb.reportDate,'',fmtDate(dates[0])+' ~ '+fmtDate(dates[4])],[],[lb.summary],[wData.summary||''],[],[lb.nextPlan],[wData.nextPlan||''],[],[lb.analysis],[wData.analysis||'']];
+  if(prog.length){
+    wrows.push([],[lb.progTitle]);
+    wrows.push([lb.status,lb.task,lb.note,lb.pct]);
+    prog.forEach(p=>wrows.push([lb.statusLabel[p.status]||p.status,p.task||'',p.note||'',(p.status==='new'?'NEW':(p.pct||0)+'%')]));
+  }
+  const wws=XLSX.utils.aoa_to_sheet(wrows);wws['!cols']=[{wch:15},{wch:30},{wch:50},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,wws,lang==='en'?'Weekly Report':'주간 업무 보고');
+  const sfx=lang==='en'?'_EN':'';const name=pdfType==='daily'?`daily_report${sfx}.xlsx`:`weekly_report_${fmtShort(dates[0])}_${fmtShort(dates[4])}${sfx}.xlsx`;
+  XLSX.writeFile(wb,name);
+}
+
+// ── exportWordWithData ────────────────────────────────────────────────────────
+function exportWordWithData(pdfType,wData,lang,prog){
+  const dates=getWeekDates(S.weekKey);const user=S.user;const accent=S.accent;const lb=L(lang);
+  const hd=`background:${accent};color:white;padding:5pt 8pt;font-weight:bold;`;
+  const sb=`border:1pt solid #ddd;padding:6pt 8pt;font-size:9.5pt;line-height:1.7;white-space:pre-wrap;min-height:55pt;`;
+
+  const progHTML=prog.length?`
+<p style="background:${accent};color:white;padding:5pt 8pt;font-weight:bold;margin-top:10pt;">${lb.progTitle}</p>
+<table style="width:100%;border-collapse:collapse;font-size:9pt;">
+<tr style="background:${accent}22;"><th style="border:1pt solid #ddd;padding:4pt;text-align:left;width:55pt;">${lb.status}</th><th style="border:1pt solid #ddd;padding:4pt;text-align:left;">${lb.task}</th><th style="border:1pt solid #ddd;padding:4pt;text-align:left;">${lb.note}</th><th style="border:1pt solid #ddd;padding:4pt;text-align:center;width:40pt;">${lb.pct}</th></tr>
+${prog.map(p=>`<tr><td style="border:1pt solid #ddd;padding:4pt;">${lb.statusLabel[p.status]||p.status}</td><td style="border:1pt solid #ddd;padding:4pt;">${esc(p.task||'')}</td><td style="border:1pt solid #ddd;padding:4pt;">${esc(p.note||'')}</td><td style="border:1pt solid #ddd;padding:4pt;text-align:center;">${p.status==='new'?'NEW':(p.pct||0)+'%'}</td></tr>`).join('')}
+</table>`:'';
+
+  const weeklyHtml=`<h1 style="font-size:16pt;font-weight:bold;text-align:center;">${lb.wtitle1}</h1>
+<h2 style="font-size:11pt;text-align:center;color:#555;margin-bottom:14pt;">${lb.wtitle2}</h2>
+<table style="width:100%;border-collapse:collapse;margin-bottom:14pt;">
+<tr><td style="${hd}width:80pt;">${lb.dept}</td><td style="border:1pt solid #ddd;padding:5pt 8pt;">${esc(user.dept||'')}</td></tr>
+<tr><td style="${hd}">${lb.namePos}</td><td style="border:1pt solid #ddd;padding:5pt 8pt;">${esc(user.position||'')} ${esc(user.name||'')}</td></tr>
+<tr><td style="${hd}">${lb.reportDate}</td><td style="border:1pt solid #ddd;padding:5pt 8pt;">${fmtDate(dates[0])} ~ ${fmtDate(dates[4])}</td></tr>
+</table>
+<div style="${hd}margin-top:8pt;">${lb.summary}</div><div style="${sb}">${esc(wData.summary||'').replace(/\n/g,'<br>')}</div>
+<div style="${hd}margin-top:8pt;">${lb.nextPlan}</div><div style="${sb}">${esc(wData.nextPlan||'').replace(/\n/g,'<br>')}</div>
+<div style="${hd}margin-top:8pt;">${lb.analysis}</div><div style="${sb}">${esc(wData.analysis||'').replace(/\n/g,'<br>')}</div>
+${progHTML}`;
+
+  let body='';
+  if(pdfType==='full'){
+    for(let i=0;i<5;i++){
+      const d=wd().daily[i];const date=dates[i];
+      body+=`<div style="page-break-after:always;">
+<h1 style="font-size:16pt;font-weight:bold;text-align:center;">${lb.title1}</h1>
+<h2 style="font-size:11pt;text-align:center;color:#555;margin-bottom:14pt;">${lb.title2}</h2>
+<table style="width:100%;border-collapse:collapse;margin-bottom:14pt;">
+<tr><td style="${hd}">${lb.dept}</td><td style="border:1pt solid #ddd;padding:5pt 8pt;">${esc(user.dept||'')}</td></tr>
+<tr><td style="${hd}">${lb.namePos}</td><td style="border:1pt solid #ddd;padding:5pt 8pt;">${esc(user.position||'')} ${esc(user.name||'')}</td></tr>
+<tr><td style="${hd}">${lb.date}</td><td style="border:1pt solid #ddd;padding:5pt 8pt;">${fmtDate(date)} (${DAY_SHORT[i]})</td></tr>
+</table>
+${i===0&&d.prevSummary?`<div style="${hd}margin-top:8pt;">${lb.prevSum}</div><div style="${sb}">${esc(d.prevSummary).replace(/\n/g,'<br>')}</div>`:''}
+<div style="${hd}margin-top:8pt;">${lb.content}</div><div style="${sb}">${esc(d.content||'').replace(/\n/g,'<br>')}</div>
+<div style="${hd}margin-top:8pt;">${lb.progress}</div><div style="${sb}">${esc(d.progress||'').replace(/\n/g,'<br>')}</div>
+<div style="${hd}margin-top:8pt;">${lb.insight}</div><div style="${sb}">${esc(d.insight||'').replace(/\n/g,'<br>')}</div>
+</div>`;
+    }
+  }
+  body+=weeklyHtml;
+
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="UTF-8"><style>body{font-family:'맑은 고딕',sans-serif;font-size:10pt;color:#1a2744;margin:1.8cm;}</style></head><body>${body}</body></html>`;
+  const blob=new Blob([html],{type:'application/msword;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  const sfx=lang==='en'?'_EN':'';
+  a.download=`weekly_report_${fmtShort(dates[0])}_${fmtShort(dates[4])}${sfx}.doc`;
+  a.click();URL.revokeObjectURL(a.href);
+}
+
+// ── HELPERS ────────────────────────────────────────────────────────────────────
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function showToast(m){S.toast=m;render();setTimeout(()=>{S.toast=null;render();},2200);}
+function copyText(t){navigator.clipboard.writeText(t).then(()=>showToast('클립보드에 복사됐어요!'));}
+function allKeys(){const k=new Set(Object.keys(S.weeks));k.add(curKey());return[...k].sort((a,b)=>b.localeCompare(a));}
+
+// ── RENDER ─────────────────────────────────────────────────────────────────────
+function render(){document.getElementById('app').innerHTML=buildHTML();applyTheme();}
+
+function buildHTML(){
+  const dates=getWeekDates(S.weekKey);
+  const data=wd();const isW=S.tab===5;
+  const isCur=S.weekKey===curKey();
+  const mon=fmtShort(dates[0]),fri=fmtShort(dates[4]);
+
+  return`
+  ${S.showModal?modalHTML():''}
+  ${S.showPdfModal?pdfModalHTML():''}
+  ${S.showExportModal?exportModalHTML():''}
+  ${S.showSettings?`<div class="settings-overlay" onclick="S.showSettings=false;render()"></div>${settingsHTML()}`:''}
+  ${S.toast?`<div class="toast">✓ ${S.toast}</div>`:''}
+  <div class="header">
+    <div><div class="header-title">📋 주간 업무 일지</div><div class="header-sub">WEEKLY WORK REPORT</div></div>
+    <div class="header-right">
+      <span class="lang-badge">🌐 KO · EN · JA · VI</span>
+      <div class="week-nav">
+        <button class="wbtn" onclick="wNav(-1)">◀</button>
+        <div class="week-label">${mon} ~ ${fri}${isCur?' (이번 주)':''}</div>
+        <button class="wbtn" onclick="wNav(1)" ${isCur?'disabled':''}>▶</button>
+        ${!isCur?`<button class="today-btn" onclick="goToday()">오늘</button>`:''}
+      </div>
+      <button class="hbtn" onclick="S.showSettings=!S.showSettings;render()">⚙️ 설정</button>
+      <div class="hbtn user-badge" onclick="S.showModal=true;render()">
+        <div>
+          <div class="user-badge-name">${esc(S.user.name)||'이름 미설정'}${S.user.position?' · '+esc(S.user.position):''}</div>
+          <div class="user-badge-dept">${esc(S.user.dept)||'소속 미설정'} · 클릭해서 수정</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="sb-section">일일 업무</div>
+      ${DAY_SHORT.map((d,i)=>{
+        const dd=data.daily[i],has=dd.content||dd.progress||dd.insight;
+        return`<button class="day-btn${S.tab===i?' active':''}${has?' has-data':''}" onclick="setTab(${i})">
+          <div class="day-dot"></div>
+          <div class="day-info"><div class="day-name">${d}요일</div><div class="day-date">${fmtShort(dates[i])}</div></div>
+          ${has?`<span class="badge badge-green" style="font-size:0.6rem;">✓</span>`:''}
+        </button>`;
+      }).join('')}
+      <div class="sb-section" style="margin-top:0.8rem;">주간 보고</div>
+      <button class="weekly-btn${isW?' active':''}" onclick="setTab(5)">
+        📊 주간 업무 보고
+        ${data.weekly.summary?`<span class="badge badge-green" style="font-size:0.6rem;margin-left:auto;">✓</span>`:''}
+      </button>
+      <div class="archive-hdr" onclick="S.showArchive=!S.showArchive;render()">
+        <div class="archive-lbl">📂 지난 기록</div>
+        <span style="font-size:0.63rem;color:var(--text-muted);">${S.showArchive?'▲':'▼'}</span>
+      </div>
+      ${S.showArchive?allKeys().map(k=>{
+        const ds=getWeekDates(k);const wData=S.weeks[k];
+        const has=wData&&(wData.daily.some(d=>d.content)||wData.weekly.summary);
+        return`<button class="archive-item${k===S.weekKey?' sel':''}" onclick="goWeek('${k}')">
+          <span>${has?'●':'○'}</span>${fmtShort(ds[0])}~${fmtShort(ds[4])}${k===curKey()?' (현재)':''}
+        </button>`;
+      }).join(''):''}
+    </div>
+    <div class="main">
+      ${isW?weeklyPage(data,dates):dailyPage(S.tab,data,dates)}
+    </div>
+  </div>`;
+}
+
+function openExportModal(fmt){
+  S._exportFmt=fmt;S._pdfChoice=S._pdfChoice||'weekly';
+  S.showExportModal=true;render();
+}
+function exportBtns(type,idx){
+  if(type==='weekly'){
+    return`<div class="export-row">
+      <span class="export-label">내보내기</span>
+      <button class="btn-export" onclick="openExportModal('pdf')">🖨️ PDF 인쇄</button>
+      <button class="btn-export" onclick="openExportModal('excel')">📊 Excel</button>
+      <button class="btn-export" onclick="openExportModal('word')">📝 Word</button>
+    </div>`;
+  }
+  return`<div class="export-row">
+    <span class="export-label">내보내기</span>
+    <button class="btn-export" onclick="exportPDF('daily',${idx})">🖨️ PDF 인쇄</button>
+    <button class="btn-export" onclick="exportExcel('daily',${idx})">📊 Excel</button>
+    <button class="btn-export" onclick="exportWord('daily',${idx})">📝 Word</button>
+  </div>`;
+}
+
+function dailyPage(idx,data,dates){
+  const d=data.daily[idx];const has=d.content||d.progress||d.insight;
+  return`
+  <div class="page-header">
+    <div>
+      <div class="page-title">📄 일일 업무 일지 — ${DAY_SHORT[idx]}요일</div>
+      <div class="page-date">${fmtDate(dates[idx])} (${DAY_SHORT[idx]})</div>
+    </div>
+    <div class="detail-toggle">
+      ${['simple','mid','detail'].map(v=>`<button class="detail-btn${S.detail===v?' active':''}" onclick="S.detail='${v}';render()">${{simple:'간단',mid:'중간',detail:'상세'}[v]}</button>`).join('')}
+    </div>
+  </div>
+  ${idx===0?`<div class="card">
+    <div class="card-header light">
+      <div><span class="card-title">📌 전주 업무 요약</span><span style="font-size:0.7rem;font-weight:400;color:var(--text-muted);margin-left:0.5rem;">저번 주 기록 자동 생성</span></div>
+      <div class="row" style="gap:0.35rem;">
+        ${S.prevSumGen?'<div class="loading"><span class="spinner"></span><span style="font-size:0.74rem;">생성 중...</span></div>':`<button class="btn btn-sm btn-secondary" onclick="genPrevSummary(false)">🔄 재생성</button>`}
+      </div>
+    </div>
+    <div class="card-body">
+      ${!d.prevSummary&&!S.prevSumGen?`<div style="font-size:0.77rem;color:var(--text-muted);margin-bottom:0.5rem;">💡 저번 주 데이터가 있으면 자동 생성됩니다. 없으면 직접 입력하세요.</div>`:''}
+      <textarea class="output-area" rows="3" placeholder="전주 업무 요약..." oninput="wd().daily[0].prevSummary=this.value;saveWeeks()">${esc(d.prevSummary)}</textarea>
+    </div>
+  </div>`:''}
+  <div class="card">
+    <div class="card-header light"><span class="card-title">✍️ 오늘 한 일 입력</span></div>
+    <div class="card-body">
+      <div class="section-label">메모 (자유롭게 나열)</div>
+      <textarea class="input-area" rows="4" placeholder="예: OLC 매뉴얼 검토, 회의 참석, 샘플 검수..." oninput="wd().daily[${idx}].rawInput=this.value;saveWeeks()">${esc(d.rawInput)}</textarea>
+      <div style="margin-top:0.85rem;" class="section-label">파일 또는 이미지 첨부</div>
+      <div class="file-zone" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="fileDrop(event,${idx})">
+        <input type="file" accept=".xlsx,.xls,.txt,.csv,.pdf,.jpg,.jpeg,.png,.webp,.gif" multiple onchange="fileChange(event,${idx})">
+        <div class="file-zone-icon">📎</div>
+        <div class="file-zone-text">파일 또는 이미지를 드래그하거나 <strong>클릭해서 선택</strong></div>
+        <div class="file-zone-text" style="margin-top:0.12rem;font-size:0.69rem;">xlsx · txt · jpg · png 등</div>
+      </div>
+      ${d.attachments.length?`<div class="attachment-list">${d.attachments.map((a,ai)=>a.type==='image'
+        ?`<div class="img-wrap"><img src="${a.preview}" class="attach-preview"><span class="attach-tag img-tag">🖼 ${esc(a.name.length>10?a.name.substring(0,10)+'…':a.name)} <button onclick="removeAtt(${idx},${ai})">✕</button></span></div>`
+        :`<span class="attach-tag">📄 ${esc(a.name)} <button onclick="removeAtt(${idx},${ai})">✕</button></span>`).join('')}</div>`:''}
+      <div style="margin-top:0.95rem;" class="row">
+        <button class="btn btn-primary" onclick="genDaily(${idx})" ${S.loading?'disabled':''}>
+          ${S.loading?'<span class="spinner"></span> 작성 중...':'✨ AI로 일지 작성'}
+        </button>
+        ${S.loading?'<div class="loading">Claude가 작성 중입니다...</div>':''}
+      </div>
+    </div>
+  </div>
+  ${has?`<div class="card">
+    <div class="card-header" style="background:var(--accent);">
+      <span class="card-title">📝 작성된 업무 일지</span>
+      <div class="row" style="gap:0.38rem;">
+        <button class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:white;" onclick="copyText('[업무 내용]\\n'+wd().daily[${idx}].content+'\\n\\n[추진 내용 및 결과]\\n'+wd().daily[${idx}].progress+'\\n\\n[업무 인사이트]\\n'+wd().daily[${idx}].insight)">📋 복사</button>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:white;" onclick="genDaily(${idx})">🔄 재생성</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="preview-section"><div class="preview-label">업무 내용</div>
+        <textarea class="output-area" rows="4" oninput="wd().daily[${idx}].content=this.value;saveWeeks()">${esc(d.content)}</textarea></div>
+      <div class="preview-section"><div class="preview-label">추진 내용 및 결과</div>
+        <textarea class="output-area" rows="4" oninput="wd().daily[${idx}].progress=this.value;saveWeeks()">${esc(d.progress)}</textarea></div>
+      <div class="preview-section"><div class="preview-label">업무 인사이트</div>
+        <textarea class="output-area" rows="3" oninput="wd().daily[${idx}].insight=this.value;saveWeeks()">${esc(d.insight)}</textarea></div>
+      ${exportBtns('daily',idx)}
+    </div>
+  </div>`:''}`;
+}
+
+function weeklyPage(data,dates){
+  const w=data.weekly;const has=w.summary||w.nextPlan||w.analysis;
+  const hasDaily=data.daily.some(d=>d.content);
+  if(!has&&hasDaily&&!S.loading&&!S.autoGen)setTimeout(()=>genWeekly(true),60);
+  return`
+  <div class="page-header">
+    <div>
+      <div class="page-title">📊 주간 업무 보고</div>
+      <div class="page-date">${fmtDate(dates[0])} ~ ${fmtDate(dates[4])}</div>
+    </div>
+    <div class="detail-toggle">
+      ${['simple','mid','detail'].map(v=>`<button class="detail-btn${S.detail===v?' active':''}" onclick="S.detail='${v}';render()">${{simple:'간단',mid:'중간',detail:'상세'}[v]}</button>`).join('')}
+    </div>
+  </div>
+  ${(S.autoGen||S.progressGen)?`<div class="auto-banner"><div class="spinner"></div>${S.autoGen?'주간 보고서 자동 생성 중...':'진척상황 분석 중...'}</div>`:''}
+
+  <!-- 일일 현황 + 주간보고 자동생성 -->
+  <div class="card">
+    <div class="card-header light">
+      <div><span class="card-title">📅 이번 주 일일 업무 현황</span><span style="font-size:0.7rem;font-weight:400;color:var(--text-muted);margin-left:0.5rem;">일일 기록 기반 자동 생성</span></div>
+      <div class="row" style="gap:0.35rem;">
+        ${S.autoGen
+          ? '<div class="loading"><span class="spinner"></span><span style="font-size:0.74rem;">생성 중...</span></div>'
+          : `<button class="btn btn-sm btn-secondary" onclick="genWeekly(false)" ${S.loading?'disabled':''}>🔄 ${has?'재생성':'자동 생성'}</button>`}
+      </div>
+    </div>
+    <div class="card-body">
+      ${!has&&!S.autoGen&&hasDaily?`<div style="font-size:0.77rem;color:var(--text-muted);margin-bottom:0.55rem;display:flex;align-items:center;gap:0.35rem;"><span>💡</span><span>버튼을 누르면 일일 업무 기록으로 주간 보고서를 자동 생성합니다.</span></div>`:''}
+      ${data.daily.map((d,i)=>`<div style="display:flex;gap:0.5rem;align-items:flex-start;margin-bottom:0.48rem;">
+        <span class="badge ${d.content?'badge-green':'badge-blue'}" style="min-width:26px;text-align:center;flex-shrink:0;">${DAY_SHORT[i]}</span>
+        <span style="font-size:0.8rem;color:${d.content?'var(--text)':'var(--text-muted)'};line-height:1.5;">${d.content?esc(d.content.substring(0,80))+(d.content.length>80?'…':''):'미작성'}</span>
+      </div>`).join('')}
+    </div>
+  </div>
+
+  <!-- 진척상황 카드 -->
+  <div class="card">
+    <div class="card-header light">
+      <div><span class="card-title">📈 업무 진척상황</span><span style="font-size:0.7rem;font-weight:400;color:var(--text-muted);margin-left:0.5rem;">전주↔이번주 AI 비교 분석</span></div>
+      <div class="row" style="gap:0.35rem;">
+        ${S.progressGen
+          ? '<div class="loading"><span class="spinner"></span><span style="font-size:0.74rem;">분석 중...</span></div>'
+          : `<button class="btn btn-sm btn-secondary" onclick="genProgress(false)" ${S.loading?'disabled':''}>🔍 ${S.progressItems.length?'재분석':'진척 분석'}</button>`}
+      </div>
+    </div>
+    <div class="card-body">
+      ${!S.progressItems.length&&!S.progressGen?`<div style="font-size:0.78rem;color:var(--text-muted);display:flex;align-items:center;gap:0.4rem;">
+        <span>💡</span><span>전주 업무와 이번 주 업무를 비교해 진척상황을 자동 분석합니다. 버튼을 눌러보세요.</span>
+      </div>`:''}
+      ${S.progressItems.map(p=>{
+        const sc={done:'s-done',inprogress:'s-prog',delayed:'s-delay',new:'s-new',dropped:'s-drop'}[p.status]||'s-prog';
+        const sl={done:'완료',inprogress:'진행중',delayed:'지연',new:'신규',dropped:'중단'}[p.status]||p.status;
+        const pct=Math.max(0,Math.min(100,p.pct||0));
+        return`<div class="prog-item">
+          <span class="prog-status ${sc}">${sl}</span>
+          <div style="flex:1;min-width:0;">
+            <div class="prog-task">${esc(p.task||'')}</div>
+            <div class="prog-note">${esc(p.note||'')}</div>
+            ${p.status!=='new'?`<div class="prog-bar-wrap"><div class="prog-bar" style="width:${pct}%;background:${{done:'#22c55e',inprogress:'var(--accent)',delayed:'#f97316',dropped:'#ef4444',new:'#8b5cf6'}[p.status]||'var(--accent)'};"></div></div>`:''}
+          </div>
+          <span style="font-size:0.75rem;font-family:'DM Mono',monospace;color:var(--text-muted);flex-shrink:0;min-width:30px;text-align:right;">${p.status==='new'?'NEW':pct+'%'}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header light"><span class="card-title">✍️ 추가 메모 / 파일 <span style="font-weight:400;font-size:0.74rem;opacity:0.65;">(선택)</span></span></div>
+    <div class="card-body">
+      <textarea class="input-area" rows="3" placeholder="이번 주 특이사항, 추가 내용 등..." oninput="wd().weekly.rawInput=this.value;saveWeeks()">${esc(w.rawInput)}</textarea>
+      <div style="margin-top:0.85rem;" class="section-label">파일 또는 이미지 첨부</div>
+      <div class="file-zone" ondragover="event.preventDefault();this.classList.add('drag-over')" ondragleave="this.classList.remove('drag-over')" ondrop="fileDrop(event,'weekly')">
+        <input type="file" accept=".xlsx,.xls,.txt,.csv,.jpg,.jpeg,.png,.webp,.gif" multiple onchange="fileChange(event,'weekly')">
+        <div class="file-zone-icon">📎</div>
+        <div class="file-zone-text">파일 또는 이미지를 드래그하거나 <strong>클릭해서 선택</strong></div>
+      </div>
+      ${w.attachments.length?`<div class="attachment-list">${w.attachments.map((a,ai)=>a.type==='image'
+        ?`<div class="img-wrap"><img src="${a.preview}" class="attach-preview"><span class="attach-tag img-tag">🖼 ${esc(a.name.length>10?a.name.substring(0,10)+'…':a.name)} <button onclick="removeAtt('weekly',${ai})">✕</button></span></div>`
+        :`<span class="attach-tag">📄 ${esc(a.name)} <button onclick="removeAtt('weekly',${ai})">✕</button></span>`).join('')}</div>`:''}
+      <div style="margin-top:0.95rem;" class="row">
+        <button class="btn btn-dark" onclick="genWeekly(false)" ${(S.loading||S.autoGen)?'disabled':''}>
+          ${S.loading?'<span class="spinner"></span> 작성 중...':(has?'🔄 다시 생성':'✨ AI로 보고서 작성')}
+        </button>
+      </div>
+    </div>
+  </div>
+  ${has?`<div class="card">
+    <div class="card-header" style="background:var(--accent);">
+      <span class="card-title">📝 주간 업무 보고서</span>
+      <div class="row" style="gap:0.38rem;">
+        <button class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:white;" onclick="copyText('[금주 업무 요약]\\n'+wd().weekly.summary+'\\n\\n[차주 업무 계획]\\n'+wd().weekly.nextPlan+'\\n\\n[분석 및 시사점]\\n'+wd().weekly.analysis)">📋 복사</button>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:white;" onclick="genWeekly(false)">🔄 재생성</button>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="preview-section"><div class="preview-label">금주 업무 요약</div>
+        <textarea class="output-area" rows="5" oninput="wd().weekly.summary=this.value;saveWeeks()">${esc(w.summary)}</textarea></div>
+      <div class="preview-section"><div class="preview-label">차주 업무 계획</div>
+        <textarea class="output-area" rows="4" oninput="wd().weekly.nextPlan=this.value;saveWeeks()">${esc(w.nextPlan)}</textarea></div>
+      <div class="preview-section"><div class="preview-label">분석 및 시사점</div>
+        <textarea class="output-area" rows="4" oninput="wd().weekly.analysis=this.value;saveWeeks()">${esc(w.analysis)}</textarea></div>
+      ${exportBtns('weekly',0)}
+    </div>
+  </div>`:(!hasDaily&&!S.autoGen?`<div class="empty-state"><div class="ei">📝</div><p>아직 이번 주 일일 업무가 없어요.<br>월~금 탭에서 업무를 작성하면<br>자동으로 주간 보고서가 생성됩니다.</p></div>`:'')}`;
+}
+
+function settingsHTML(){
+  const bPct=Math.round(S.brightness*100);
+  const sliderBg=`linear-gradient(to right, var(--accent) 0%, var(--accent) ${bPct}%, var(--border) ${bPct}%)`;
+  return`<div class="settings-panel">
+    <h2>⚙️ 설정 <button onclick="S.showSettings=false;render()">✕</button></h2>
+    <div class="settings-section">
+      <div class="settings-section-title">🌙 테마</div>
+      <div class="theme-toggle">
+        <button class="theme-btn${S.theme==='light'?' active':''}" onclick="S.theme='light';saveThemePrefs();applyTheme();render()">☀️ 라이트</button>
+        <button class="theme-btn${S.theme==='dark'?' active':''}" onclick="S.theme='dark';saveThemePrefs();applyTheme();render()">🌙 다크</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">💡 밝기</div>
+      <div class="brightness-row">
+        <span style="font-size:0.78rem;">🔅</span>
+        <input type="range" class="brightness-slider" min="60" max="120" value="${bPct}" style="background:${sliderBg};"
+          oninput="S.brightness=this.value/100;document.body.style.filter='brightness('+S.brightness+')';this.style.background='linear-gradient(to right,var(--accent) 0%,var(--accent) '+this.value+'%,var(--border) '+this.value+'%)';saveThemePrefs();document.querySelector('.brightness-val').textContent=this.value+'%';">
+        <span style="font-size:0.78rem;">🔆</span>
+        <span class="brightness-val">${bPct}%</span>
+      </div>
+      <div style="display:flex;gap:0.4rem;margin-top:0.5rem;flex-wrap:wrap;">
+        ${[70,85,100,110,120].map(v=>`<button class="btn btn-secondary btn-sm" style="font-size:0.68rem;" onclick="S.brightness=${v/100};document.body.style.filter='brightness(${v/100})';saveThemePrefs();render()">${v}%</button>`).join('')}
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">🎨 테이블 헤더 색상</div>
+      <div class="color-presets">
+        ${COLOR_PRESETS.map(c=>`<div class="color-swatch${S.accent===c?' selected':''}" style="background:${c};" onclick="setAccent('${c}')"></div>`).join('')}
+      </div>
+      <div class="color-custom-row">
+        <input type="color" class="color-custom-input" value="${S.accent}" oninput="setAccent(this.value);document.querySelector('.color-custom-hex').value=this.value;">
+        <input type="text" class="color-custom-hex" value="${S.accent}" placeholder="#4f8ef7" maxlength="7"
+          oninput="if(/^#[0-9a-fA-F]{6}$/.test(this.value)){setAccent(this.value);}">
+        <button class="btn btn-secondary btn-sm" onclick="setAccent('${S.accent}')">적용</button>
+      </div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">📋 내보내기 안내</div>
+      <div style="font-size:0.77rem;color:var(--text-muted);line-height:1.65;">
+        일지 작성 후 하단에 나타나는<br>
+        <strong style="color:var(--text);">🖨️ PDF</strong> · <strong style="color:var(--text);">📊 Excel</strong> · <strong style="color:var(--text);">📝 Word</strong><br>
+        버튼으로 내보낼 수 있습니다.<br><br>
+        Excel은 업로드하신 양식과<br>동일한 형식으로 저장됩니다.
+      </div>
+    </div>
+  </div>`;
+}
+
+// 통합 내보내기 모달 (PDF/Excel/Word 공통)
+function exportModalHTML(){
+  const fmt=S._exportFmt||'pdf';
+  const fmtLabels={pdf:'🖨️ PDF 인쇄',excel:'📊 Excel 저장',word:'📝 Word 저장'};
+  const hasProg=S.progressItems&&S.progressItems.length>0;
+  return`<div class="modal-overlay" onclick="if(event.target===this){S.showExportModal=false;render()}">
+    <div class="modal" style="width:480px;">
+      <h2>${fmtLabels[fmt]||'내보내기'} 옵션</h2>
+
+      ${fmt==='pdf'?`
+      <div style="font-size:0.78rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:0.6rem;">페이지 범위</div>
+      <div style="display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1.1rem;">
+        <div class="pdf-option${S._pdfChoice==='weekly'?' selected':''}" onclick="S._pdfChoice='weekly';render()">
+          <div class="pdf-option-icon">📄</div>
+          <div><div class="pdf-option-title">주간 보고서만 (1페이지)</div><div class="pdf-option-desc">금주 업무 요약 · 차주 업무 계획 · 분석 및 시사점</div></div>
+        </div>
+        <div class="pdf-option${S._pdfChoice==='full'?' selected':''}" onclick="S._pdfChoice='full';render()">
+          <div class="pdf-option-icon">📋</div>
+          <div><div class="pdf-option-title">전체 (월~금 일일 + 주간, 최대 6페이지)</div><div class="pdf-option-desc">일일 업무 일지 × 5 + 주간 업무 보고서</div></div>
+        </div>
+      </div>
+      `:''}
+
+      <div style="background:var(--surface2);border-radius:9px;padding:0.8rem;margin-bottom:1rem;">
+        <div class="export-opt-row" style="padding-top:0;">
+          <div><div class="export-opt-label">🌐 언어</div><div class="export-opt-sub">문서 언어를 선택하세요</div></div>
+          <div class="lang-toggle">
+            <button class="lang-btn${S._pdfLang==='ko'?' active':''}" onclick="S._pdfLang='ko';render()">한국어</button>
+            <button class="lang-btn${S._pdfLang==='en'?' active':''}" onclick="S._pdfLang='en';render()">English</button>
+          </div>
+        </div>
+        ${S._pdfLang==='en'?`<div style="font-size:0.73rem;color:var(--text-muted);margin-top:0.3rem;display:flex;gap:0.3rem;align-items:center;">
+          <span>⚠️</span><span>영어 변환은 AI가 처리하므로 수 초 소요될 수 있습니다.</span>
+        </div>`:''}
+        <div class="export-opt-row" style="${hasProg?'':'opacity:0.45;pointer-events:none;'}">
+          <div>
+            <div class="export-opt-label">📈 진척상황 포함</div>
+            <div class="export-opt-sub">${hasProg?'업무 진척상황 분석 섹션을 포함합니다':'진척상황 분석을 먼저 실행해주세요'}</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" ${S._pdfIncludeProgress&&hasProg?'checked':''} onchange="S._pdfIncludeProgress=this.checked;render()">
+            <div class="toggle-track"></div>
+            <div class="toggle-knob"></div>
+          </label>
+        </div>
+      </div>
+
+      <div class="row" style="justify-content:flex-end;gap:0.5rem;">
+        <button class="btn btn-secondary" onclick="S.showExportModal=false;render()">취소</button>
+        <button class="btn btn-primary" onclick="doExport()" ${S._pdfLang==='en'?'id="export-en-btn"':''}>
+          ${S._pdfLang==='en'?'🌐 영어로 '+fmtLabels[fmt].split(' ')[1]:fmtLabels[fmt]}
+        </button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// 내보내기 실행
+async function doExport(){
+  const fmt=S._exportFmt;const lang=S._pdfLang;const incProg=S._pdfIncludeProgress&&S.progressItems&&S.progressItems.length>0;
+  const pdfType=S._pdfChoice||'weekly';
+  S.showExportModal=false;render();
+
+  if(lang==='en'){
+    // 영어 번역 후 내보내기
+    showToast('영어로 번역 중...');
+    try{
+      const w=wd().weekly;
+      const toTrans={summary:w.summary,nextPlan:w.nextPlan,analysis:w.analysis};
+      const translated=await translateToEn(toTrans);
+      const progTrans=incProg?await translateProgressToEn(S.progressItems):[];
+      if(fmt==='pdf')exportPDFWithData(pdfType,translated,'en',incProg?progTrans:[]);
+      else if(fmt==='excel')exportExcelWithData(pdfType,translated,'en',incProg?progTrans:[]);
+      else if(fmt==='word')exportWordWithData(pdfType,translated,'en',incProg?progTrans:[]);
+      showToast('영어 문서를 내보냈어요!');
+    }catch(e){alert('번역 오류: '+e.message);}
+  }else{
+    const w=wd().weekly;
+    const data={summary:w.summary,nextPlan:w.nextPlan,analysis:w.analysis};
+    const prog=incProg?S.progressItems:[];
+    if(fmt==='pdf')exportPDFWithData(pdfType,data,'ko',prog);
+    else if(fmt==='excel')exportExcelWithData(pdfType,data,'ko',prog);
+    else if(fmt==='word')exportWordWithData(pdfType,data,'ko',prog);
+  }
+}
+
+async function translateProgressToEn(items){
+  const sys=`Translate Korean work progress items to English. Return ONLY a JSON array with same structure. No markdown.`;
+  const raw=await callClaude(sys,[{role:'user',content:JSON.stringify(items)}]);
+  return JSON.parse(raw.replace(/```json|```/g,'').trim());
+}
+
+function pdfModalHTML(){ return exportModalHTML(); }
+
+function modalHTML(){
+  return`<div class="modal-overlay" onclick="if(event.target===this){S.showModal=false;render()}">
+    <div class="modal">
+      <h2>👤 내 정보 설정</h2>
+      <div class="form-group"><label class="form-label">이름</label><input class="form-input" id="mn" value="${esc(S.user.name)}" placeholder="홍길동"></div>
+      <div class="form-group"><label class="form-label">소속</label><input class="form-input" id="md" value="${esc(S.user.dept)}" placeholder="영업 1팀"></div>
+      <div class="form-group"><label class="form-label">직위</label><input class="form-input" id="mp" value="${esc(S.user.position)}" placeholder="사원"></div>
+      <div class="row" style="justify-content:flex-end;margin-top:1.1rem;gap:0.5rem;">
+        <button class="btn btn-secondary" onclick="S.showModal=false;render()">취소</button>
+        <button class="btn btn-primary" onclick="saveUser()">저장</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── HANDLERS ───────────────────────────────────────────────────────────────────
+window.setAccent=c=>{S.accent=c;saveThemePrefs();applyTheme();render();};
+window.saveUser=()=>{
+  S.user={name:document.getElementById('mn').value,dept:document.getElementById('md').value,position:document.getElementById('mp').value};
+  localStorage.setItem('wdr_user',JSON.stringify(S.user));S.showModal=false;render();
+};
+window.setTab=(i)=>{
+  S.tab=i;
+  if(i===0){const mon=wd().daily[0];if(!mon.prevSummary&&!S.loading&&!S.prevSumGen)setTimeout(()=>genPrevSummary(true),60);}
+  if(i===5){
+    const w=wd();
+    if(!w.weekly.summary&&w.daily.some(d=>d.content)&&!S.loading&&!S.autoGen)setTimeout(()=>genWeekly(true),60);
+    // 진척상황도 자동 분석
+    if(!S.progressItems.length&&!S.progressGen&&w.daily.some(d=>d.content))setTimeout(()=>genProgress(true),1500);
+  }
+  render();
+};
+window.wNav=(dir)=>{
+  const ds=getWeekDates(S.weekKey);const ref=new Date(ds[0]);ref.setDate(ref.getDate()+dir*7);
+  S.weekKey=dateToKey(ref);
+  if(S.tab===5){const w=wd();if(!w.weekly.summary&&w.daily.some(d=>d.content)&&!S.loading&&!S.autoGen)setTimeout(()=>genWeekly(true),60);}
+  if(S.tab===0){const mon=wd().daily[0];if(!mon.prevSummary&&!S.loading&&!S.prevSumGen)setTimeout(()=>genPrevSummary(true),60);}
+  render();
+};
+window.goToday=()=>{S.weekKey=curKey();render();};
+window.goWeek=(k)=>{S.weekKey=k;S.tab=0;render();};
+window.genPrevSummary=(a)=>genPrevSummary(a||false);
+window.genProgress=(a)=>genProgress(a||false);
+window.openExportModal=(fmt)=>openExportModal(fmt);
+window.doExport=()=>doExport();
+window.genDaily=(i)=>genDaily(i);
+window.genWeekly=(a)=>genWeekly(a||false);
+window.removeAtt=(t,i)=>removeAtt(t,i);
+window.copyText=(t)=>copyText(t);
+window.saveWeeks=()=>saveWeeks();
+window.exportPDF=(t,i)=>exportPDF(t,i);
+window.exportExcel=(t,i)=>exportExcel(t,i);
+window.exportWord=(t,i)=>exportWord(t,i);
+window.fileChange=(e,t)=>Array.from(e.target.files).forEach(f=>addFile(f,t));
+window.fileDrop=(e,t)=>{e.preventDefault();e.currentTarget.classList.remove('drag-over');Array.from(e.dataTransfer.files).forEach(f=>addFile(f,t));};
+
+// ── INIT ───────────────────────────────────────────────────────────────────────
+render();
+applyTheme();
+setTimeout(()=>{
+  if(S.tab===0){const mon=wd().daily[0];if(!mon.prevSummary&&!S.loading&&!S.prevSumGen)genPrevSummary(true);}
+},200);
+</script>
+</body>
+</html>
