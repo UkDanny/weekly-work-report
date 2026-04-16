@@ -304,7 +304,7 @@ async function callAI(msgs,sys){
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':S.apiKey,
         'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:900,system:sys,messages:msgs})
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:900,system:sys,messages:msgs})
     });
     const d=await r.json();
     if(d.error){toast('API 오류: '+d.error.message);return null;}
